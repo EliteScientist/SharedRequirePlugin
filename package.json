@@ -1,0 +1,8 @@
+{
+	"name"           : "SharedRequirePlugin",
+	"version"        : "0.0.1",
+	"description"    : "Webpack Shared Require Plugin",
+	"main"           : "SharedRequirePlugin.js",
+	"author"         : "Michael Rochelle",
+	"license"        : "MIT"
+}
