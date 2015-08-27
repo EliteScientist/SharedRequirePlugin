@@ -9,6 +9,7 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 ## Examples
 > webpack.config.js
 ``` javascript
+var SharedRequirePlugin = require("SharedRequirePlugin");
 module.exports = {
     entry: "...",
     output: {..},
