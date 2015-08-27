@@ -264,7 +264,7 @@ SharedRequirePlugin.prototype	= Object.create(Object.prototype,
 						{
 							var request	= module.rawRequest;
 							
-							if (request.charAt(0) === ".") // Relative Paths
+							if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
 								return;
 							
 							if (request.charAt(1) === ":") // Windows Drives
