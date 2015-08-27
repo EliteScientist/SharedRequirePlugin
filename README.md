@@ -4,7 +4,7 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 
 ## Install
 
-> use "npm install SharedRequirePlugin" to download and install
+> use "npm install sharedrequireplugin" to download and install
 
 ## Examples
 > webpack.config.js
