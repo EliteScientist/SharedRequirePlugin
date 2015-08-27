@@ -220,14 +220,14 @@ SharedRequirePlugin.prototype	= Object.create(Object.prototype,
 			
 			compiler.plugin("compilation", function (compilation, options)
 			{	
+				// Change JS Require Method to expose modules globally.
+				compilation.mainTemplate.plugin("require", requireFunction);
+				
 				// Suppress output of external modules
 				if (config != null && "externalModules" in config)
 				{
 					var externalModules	= config.externalModules;
-										
-					// Change JS Require Method
-					compilation.mainTemplate.plugin("require", requireFunction);
-					
+														
 					// Redefine method that renders chunk modules to use our chunk
 					// module renderer method
 					compilation.mainTemplate.renderChunkModules = function()
