@@ -1,8 +1,13 @@
 {
 	"name"           : "sharedrequireplugin",
-	"version"        : "0.1.1",
+	"version"        : "0.1.2",
 	"description"    : "Webpack Shared Require Plugin",
 	"main"           : "SharedRequirePlugin.js",
 	"author"         : "Michael Rochelle",
-	"license"        : "MIT"
+	"license"        : "MIT",
+	"keywords"		 : ["shared", "sharedrequire", "require", "webpack", "webpack plugin", "plugins", "shared require plugin", "shared require"],
+	"homepage"       : "https://github.com/EliteScientist/SharedRequirePlugin",
+	"bugs"			 : {
+						"url": "https://github.com/EliteScientist/SharedRequirePlugin/issues"
+					   }
 }
