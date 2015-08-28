@@ -289,6 +289,9 @@ SharedRequirePlugin.prototype	= Object.create(Object.prototype,
 						{
 							var request	= module.rawRequest;
 							
+							if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+								return;
+							
 							if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
 								return;
 							
