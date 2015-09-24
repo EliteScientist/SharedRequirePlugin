@@ -10,7 +10,7 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 > ### ProjectA - Contains JQuery - 
 > webpack.config.js
 ``` javascript
-var SharedRequirePlugin = require("SharedRequirePlugin");
+var SharedRequirePlugin = require("sharedrequireplugin");
 module.exports = {
     entry: "...",
     output: {..},
@@ -26,7 +26,7 @@ module.exports = {
 > ### ProjectB - Uses JQuery - 
 > webpack.config.js
 ``` javascript
-var SharedRequirePlugin = require("SharedRequirePlugin");
+var SharedRequirePlugin = require("sharedrequireplugin");
 module.exports = {
     entry: "...",
     output: {..},
