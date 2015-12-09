@@ -93,7 +93,7 @@ function renderChunkModules(chunk, moduleTemplate, dependencyTemplates, prefix, 
 {
 	// Copied From Template.js to override behavior of function in MainTemplate
 	
-	var ConcatSource = require("webpack/node_modules/webpack-core/lib/ConcatSource");
+	var ConcatSource = require("webpack/lib/ConcatSource");
 	
 	if (!prefix)
 		prefix = "";
