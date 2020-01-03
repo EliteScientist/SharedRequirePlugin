@@ -17,7 +17,7 @@ module.exports = {
     resolve: {...},
     module: {...},
     plugins: [
-		new SharedRequirePlugin(),
+		new SharedRequirePlugin({provider: true}),
         ...
     ]
 };
