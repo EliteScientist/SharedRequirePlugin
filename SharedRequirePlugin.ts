@@ -68,7 +68,7 @@ class SharedRequirePlugin
 
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) =>
                 {
-                    const buf = [];
+                    const buf = [source];
                     buf.push("// Global Module Provider Function");
                     buf.push("window.requireSharedModule = function (moduleId)");
                     buf.push("{");
