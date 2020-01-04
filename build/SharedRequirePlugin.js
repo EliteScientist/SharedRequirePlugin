@@ -1,9 +1,27 @@
-/*import webpack from "webpack";
-import sources from "webpack-sources";
+/*
+   MIT License
 
-import Module       = webpack.compilation.Module;
-import RawSource    = sources.RawSource;
-*/
+    Copyright (c) 2020 Michael Rochelle <EliteScientist@gmail.com>
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is
+    furnished to do so, subject to the following conditions:
+
+    The above copyright notice and this permission notice shall be included in all
+    copies or substantial portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+    SOFTWARE.
+ 
+ */
 const Module = require("webpack").Module;
 const Template = require("webpack").Template;
 const RawSource = require("webpack-sources").RawSource;
@@ -30,6 +48,7 @@ class SharedRequirePlugin {
     apply(compiler) {
         // Begin Compilation
         if (this.options.provider) {
+            // Configure Compiler
             compiler.hooks.compilation.tap(pluginName, (compilation, params) => {
                 const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) => {
@@ -61,7 +80,12 @@ class SharedRequirePlugin {
         }
         // Get Module Factory
         compiler.hooks.normalModuleFactory.tap(pluginName, factory => {
-            if (!this.options.provider) {
+            if (!this.options.provider && this.options.externalModules != null) {
+                // Configure Resolver
+                factory.hooks.resolver.tap(pluginName, resolver => {
+                    let extResolver = new ExternalResolver(this.options, resolver);
+                    return extResolver.apply.bind(extResolver);
+                });
                 // If we're not creating a pod then tap into factory's module creation to injecty our External Access Module
                 factory.hooks.module.tap(pluginName, this.processModule.bind(this));
             }
@@ -82,6 +106,11 @@ class SharedRequirePlugin {
         // TODO:
     }
 }
+/**
+ * External Access Module
+ *
+ * This module creates mechanism to retrieve modules that are provided by the provider application.
+ */
 class ExternalAccessModule extends Module {
     constructor(mod, context, options) {
         super("javascript/dynamic", context);
@@ -117,6 +146,29 @@ class ExternalAccessModule extends Module {
         callback();
     }
 }
+/**
+ * Shared Require Plugin Options
+ */
 class SharedRequirePluginOptions {
+}
+/**
+ * External Resolver
+ *
+ * Resolves external components. Prevents resolution error from occuring while building for components not compiled into this application.
+ */
+class ExternalResolver {
+    constructor(options, resolver) {
+        this.options = options;
+        this.parentResolver = resolver;
+    }
+    apply(data, callback) {
+        if (this.options.externalModules != null && this.options.externalModules.length > 0) {
+            if (this.options.externalModules.indexOf(data.request) > -1) {
+                callback(null, { type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true });
+                return true;
+            }
+        }
+        this.parentResolver(data, callback);
+    }
 }
 module.exports = SharedRequirePlugin;
