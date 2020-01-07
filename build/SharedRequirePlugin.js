@@ -1,7 +1,7 @@
 /*
    MIT License
 
-    Copyright (c) 2020 Michael Rochelle <EliteScientist@gmail.com>
+    Copyright (c) 2020 Michael Rochelle <@EliteScientist>
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -25,7 +25,6 @@
 const Module = require("webpack").Module;
 const Template = require("webpack").Template;
 const RawSource = require("webpack-sources").RawSource;
-//const OriginalSource    = require("webpack-sources").OriginalSource;
 const pluginName = "SharedRequirePlugin";
 class SharedRequirePlugin {
     /**
@@ -52,6 +51,7 @@ class SharedRequirePlugin {
             // Configure Compiler
             compiler.hooks.compilation.tap(pluginName, (compilation, params) => {
                 const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
+                // Add Global Shared Requre to template
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) => {
                     const buf = [source];
                     buf.push("// Shared-Require Global Module Provider Function");
@@ -75,8 +75,9 @@ class SharedRequirePlugin {
                     }
                     return Template.asString(buf);
                 });
+                // Modify Module IDs to be requested id
                 compilation.hooks.optimizeModuleIds.tap(pluginName, (modules) => {
-                    modules.forEach(function (module) {
+                    modules.forEach((module) => {
                         if ("rawRequest" in module) {
                             let request = module.rawRequest;
                             if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
@@ -91,17 +92,37 @@ class SharedRequirePlugin {
                         }
                     });
                 });
+                // Process Chunk Module Ids
+                compilation.hooks.afterOptimizeChunkIds.tap(pluginName, (chunks) => {
+                    chunks.forEach((chunk) => {
+                        chunk.getModules().forEach((module) => {
+                            if ("rawRequest" in module) {
+                                let request = module.rawRequest;
+                                if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+                                    return;
+                                if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
+                                    return;
+                                if (request.charAt(1) === ":") // Windows Drives
+                                    return;
+                                if (request.charAt(2) === "!") // Loaders
+                                    return;
+                                module.id = request;
+                            }
+                        });
+                    });
+                    return chunks;
+                });
             });
         }
         // Get Module Factory
         compiler.hooks.normalModuleFactory.tap(pluginName, factory => {
             if (!this.options.provider && this.options.externalModules != null) {
-                // Configure Resolver
+                // Configure Resolver to resolve external modules
                 factory.hooks.resolver.tap(pluginName, resolver => {
                     let extResolver = new ExternalResolver(this.options, resolver);
                     return extResolver.apply.bind(extResolver);
                 });
-                // If we're not creating a pod then tap into factory's module creation to injecty our External Access Module
+                // Create external access module for external modules. The ExternalAccessModule returns JS to acquire the module from the provider.
                 factory.hooks.module.tap(pluginName, this.processModule.bind(this));
             }
         });
