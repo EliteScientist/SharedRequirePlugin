@@ -46,7 +46,8 @@ class SharedRequirePlugin
         {
             provider:               false,
             externalModules:        [],
-            globalModulesRequire:   "requireSharedModule"
+            globalModulesRequire:   "requireSharedModule",
+            compatibility:          false
         };
 
         this.options        = Object.assign(defaultOptions, userOptions);
@@ -69,11 +70,27 @@ class SharedRequirePlugin
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) =>
                 {
                     const buf = [source];
-                    buf.push("// Global Module Provider Function");
+                    buf.push("// Shared-Require Global Module Provider Function");
                     buf.push("window.requireSharedModule = function (moduleId)");
                     buf.push("{");
                     buf.push(Template.indent(`return ${mainTemplate.requireFn}(moduleId);`));
                     buf.push("}");
+
+                    if (this.options.compatibility)
+                    {
+                        buf.push("");
+                        buf.push("// Shared-Require Backwards Compatiblity");
+                        buf.push("Object.defineProperty(window, \"globalSharedModules\",");
+                        buf.push("{");
+                        buf.push(Template.indent([
+                            "get: function()",
+                            "{",
+                            Template.indent("return installedModules;"),
+                            "},",
+                            "configurable: true"
+                        ]));
+                        buf.push("});");
+                    }
 
                     return Template.asString(buf);
                 });
@@ -214,6 +231,7 @@ class SharedRequirePluginOptions
     provider:Boolean;               // True if this project provides libraries to loaded applications and libraries
     externalModules:Array<String>;  // List of external modules that are provided by the provider application
     globalModulesRequire:String     // Global require method name
+    compatibility:Boolean;          // True to enable compatibility other projects built with older mechanism
 }
 
 /**
@@ -238,7 +256,7 @@ class ExternalResolver
         {
             if (this.options.externalModules.indexOf(data.request) > -1)
             {
-                callback(null, {type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true});
+                callback(null, {type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {}});
                 return true;
             }
         }

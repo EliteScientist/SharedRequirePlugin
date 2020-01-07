@@ -37,7 +37,8 @@ class SharedRequirePlugin {
         const defaultOptions = {
             provider: false,
             externalModules: [],
-            globalModulesRequire: "requireSharedModule"
+            globalModulesRequire: "requireSharedModule",
+            compatibility: false
         };
         this.options = Object.assign(defaultOptions, userOptions);
     }
@@ -53,11 +54,25 @@ class SharedRequirePlugin {
                 const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) => {
                     const buf = [source];
-                    buf.push("// Global Module Provider Function");
+                    buf.push("// Shared-Require Global Module Provider Function");
                     buf.push("window.requireSharedModule = function (moduleId)");
                     buf.push("{");
                     buf.push(Template.indent(`return ${mainTemplate.requireFn}(moduleId);`));
                     buf.push("}");
+                    if (this.options.compatibility) {
+                        buf.push("");
+                        buf.push("// Shared-Require Backwards Compatiblity");
+                        buf.push("Object.defineProperty(window, \"globalSharedModules\",");
+                        buf.push("{");
+                        buf.push(Template.indent([
+                            "get: function()",
+                            "{",
+                            Template.indent("return installedModules;"),
+                            "},",
+                            "configurable: true"
+                        ]));
+                        buf.push("});");
+                    }
                     return Template.asString(buf);
                 });
                 compilation.hooks.optimizeModuleIds.tap(pluginName, (modules) => {
@@ -164,7 +179,7 @@ class ExternalResolver {
     apply(data, callback) {
         if (this.options.externalModules != null && this.options.externalModules.length > 0) {
             if (this.options.externalModules.indexOf(data.request) > -1) {
-                callback(null, { type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true });
+                callback(null, { type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {} });
                 return true;
             }
         }
