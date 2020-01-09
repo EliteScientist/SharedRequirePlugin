@@ -175,8 +175,13 @@ class SharedRequirePlugin
 
     processModule(mod, context)
     {
-        if (this.options.externalModules.indexOf(mod.rawRequest) > -1)
-            return new ExternalAccessModule(mod, context, this.options);
+        for (let i:number = 0; i < this.options.externalModules.length; i++)
+        {
+            let moduleName  = this.options.externalModules[i];
+
+            if (mod.rawRequest.match(moduleName) != null)
+                return new ExternalAccessModule(mod, context, this.options);
+        }
 
         return mod;
     }
@@ -286,10 +291,15 @@ class ExternalResolver
     {
         if (this.options.externalModules != null && this.options.externalModules.length > 0)
         {
-            if (this.options.externalModules.indexOf(data.request) > -1)
+            for (let i:number = 0; i < this.options.externalModules.length; i++)
             {
-                callback(null, {type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {}});
-                return true;
+                let moduleName  = this.options.externalModules[i];
+    
+                if (data.request.match(moduleName) != null)
+                {
+                    callback(null, {type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {}});
+                    return true;
+                }
             }
         }
 

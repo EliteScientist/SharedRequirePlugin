@@ -1,6 +1,6 @@
 {
 	"name": "sharedrequireplugin",
-	"version": "1.1.4",
+	"version": "1.1.5",
 	"description": "Webpack 4.x Shared Require Plugin",
 	"main": "build/SharedRequirePlugin.js",
 	"author": "Michael Rochelle",
