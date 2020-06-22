@@ -1,3 +1,5 @@
+import { RawSource } from "webpack-sources";
+
 /*
    MIT License
 
@@ -244,10 +246,11 @@ class ExternalAccessModule extends Module
         super.updateHash(hash);
     }
 
-    source(dependencyTemplates, runtime)
+    source(dependencyTemplates, runtime):RawSource
     {
         // TODO: Make log console error if the glboalModulesRequire method doesn't exist or the module doesn't exist.
-        let src = `module.exports = window.${this.options.globalModulesRequire}("${this.request}");`;
+		let req	= JSON.stringify(this.request);
+        let src = `module.exports = window.${this.options.globalModulesRequire}(${req});`;
         return new RawSource(src);
     }
 
