@@ -130,6 +130,8 @@ class SharedRequirePlugin {
     processModule(mod, context) {
         for (let i = 0; i < this.options.externalModules.length; i++) {
             let moduleName = this.options.externalModules[i];
+            if (typeof moduleName === "string")
+                moduleName = "^" + moduleName + "$";
             if (mod.rawRequest.match(moduleName) != null)
                 return new ExternalAccessModule(mod, context, this.options);
         }
@@ -205,6 +207,8 @@ class ExternalResolver {
         if (this.options.externalModules != null && this.options.externalModules.length > 0) {
             for (let i = 0; i < this.options.externalModules.length; i++) {
                 let moduleName = this.options.externalModules[i];
+                if (typeof moduleName === "string")
+                    moduleName = "^" + moduleName + "$";
                 if (data.request.match(moduleName) != null) {
                     callback(null, { type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {} });
                     return true;
