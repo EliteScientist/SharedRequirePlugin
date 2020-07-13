@@ -20,7 +20,7 @@
 		"appcache-webpack-plugin": "1.4.0",
 		"commitizen": "3.1.1",
 		"file-loader": "3.0.1",
-		"standard-version": "5.0.2",
+		"standard-version": "8.0.1",
 		"ts-node": "^8.5.4",
 		"typescript": "3.5.2",
 		"webpack": "4.35.2",
