@@ -110,7 +110,7 @@ class SharedRequirePlugin
 						if ("rootModule" in module) // Concatenated Module
 						{
 							let request = module.rootModule.rawRequest;
-							this.processModuleId(module.rootModule, request);
+							this.processModuleId(module, request);
 						}
 					});
 
@@ -133,7 +133,7 @@ class SharedRequirePlugin
 							if ("rootModule" in module) // Concatenated Module
 							{
 								let request = module.rootModule.rawRequest;
-								this.processModuleId(module.rootModule, request);
+								this.processModuleId(module, request);
 							}
                         });
                     });
