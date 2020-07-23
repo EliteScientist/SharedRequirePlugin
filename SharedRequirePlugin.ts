@@ -99,18 +99,18 @@ class SharedRequirePlugin
                 // Modify Module IDs to be requested id
                 compilation.hooks.optimizeModuleIds.tap(pluginName, (modules) =>
                 {
-                    modules.forEach((module) =>
+                    modules.forEach((mod) =>
 					{
-						if ("rawRequest" in module) 
+						if ("rawRequest" in mod) 
 						{
-							let request = module.rawRequest;
-							this.processModuleId(module, request);
+							let request = mod.rawRequest;
+							this.processModuleId(mod, request);
 						}
 						else
-						if ("rootModule" in module) // Concatenated Module
+						if ("rootModule" in mod) // Concatenated Module
 						{
-							let request = module.rootModule.rawRequest;
-							this.processModuleId(module, request);
+							let request = mod.rootModule.rawRequest;
+							this.processModuleId(mod, request);
 						}
 					});
 
@@ -122,18 +122,18 @@ class SharedRequirePlugin
                 {
                     chunks.forEach((chunk) =>
                     {
-                        chunk.getModules().forEach((module) =>
+                        chunk.getModules().forEach((mod) =>
                         {
-                            if ("rawRequest" in module) 
+                            if ("rawRequest" in mod) 
 							{								
-								let request = module.rawRequest;
-								this.processModuleId(module, request);
+								let request = mod.rawRequest;
+								this.processModuleId(mod, request);
 							}
 							else
-							if ("rootModule" in module) // Concatenated Module
+							if ("rootModule" in mod) // Concatenated Module
 							{
-								let request = module.rootModule.rawRequest;
-								this.processModuleId(module, request);
+								let request = mod.rootModule.rawRequest;
+								this.processModuleId(mod, request);
 							}
                         });
                     });
@@ -161,9 +161,9 @@ class SharedRequirePlugin
         });
     }
 
-	processModuleId(module, request:string):void
+	processModuleId(mod, request:string):void
 	{		
-		if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+		if (mod.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
 			return;
 		
 		if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
@@ -175,8 +175,8 @@ class SharedRequirePlugin
 		if (request.charAt(2) === "!") // Loaders
 			return;
 	
-		if (module.usedExports === true)
-			module.id = request;
+		if (mod.usedExports === true)
+			mod.id = request;
 	}
 	
     processModule(mod, context)
@@ -227,6 +227,19 @@ class ExternalAccessModule extends Module
         // Info from Factory
         this.request        = mod.rawRequest;
         this.ident          = this.request;
+		
+		this.type			= mod.type;
+		this.context		= context;
+		this.debugId		= mod.debugId;
+		this.hash			= mod.hash;
+		this.renderedHash	= mod.renderedHash;
+		this.reasons		= mod.reasons;
+		this.id				= this.request;
+		this.index			= mod.index;
+		this.index2			= mod.index2;
+		this.depth			= mod.depth;
+		this.used			= mod.used;
+		this.usedExports	= mod.usedExports;
     }
 
     libIdent():String

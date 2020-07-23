@@ -77,30 +77,30 @@ class SharedRequirePlugin {
                 });
                 // Modify Module IDs to be requested id
                 compilation.hooks.optimizeModuleIds.tap(pluginName, (modules) => {
-                    modules.forEach((module) => {
-                        if ("rawRequest" in module) {
-                            let request = module.rawRequest;
-                            this.processModuleId(module, request);
+                    modules.forEach((mod) => {
+                        if ("rawRequest" in mod) {
+                            let request = mod.rawRequest;
+                            this.processModuleId(mod, request);
                         }
-                        else if ("rootModule" in module) // Concatenated Module
+                        else if ("rootModule" in mod) // Concatenated Module
                          {
-                            let request = module.rootModule.rawRequest;
-                            this.processModuleId(module, request);
+                            let request = mod.rootModule.rawRequest;
+                            this.processModuleId(mod, request);
                         }
                     });
                 });
                 // Process Chunk Module Ids
                 compilation.hooks.afterOptimizeChunkIds.tap(pluginName, (chunks) => {
                     chunks.forEach((chunk) => {
-                        chunk.getModules().forEach((module) => {
-                            if ("rawRequest" in module) {
-                                let request = module.rawRequest;
-                                this.processModuleId(module, request);
+                        chunk.getModules().forEach((mod) => {
+                            if ("rawRequest" in mod) {
+                                let request = mod.rawRequest;
+                                this.processModuleId(mod, request);
                             }
-                            else if ("rootModule" in module) // Concatenated Module
+                            else if ("rootModule" in mod) // Concatenated Module
                              {
-                                let request = module.rootModule.rawRequest;
-                                this.processModuleId(module, request);
+                                let request = mod.rootModule.rawRequest;
+                                this.processModuleId(mod, request);
                             }
                         });
                     });
@@ -121,8 +121,8 @@ class SharedRequirePlugin {
             }
         });
     }
-    processModuleId(module, request) {
-        if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+    processModuleId(mod, request) {
+        if (mod.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
             return;
         if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
             return;
@@ -130,8 +130,8 @@ class SharedRequirePlugin {
             return;
         if (request.charAt(2) === "!") // Loaders
             return;
-        if (module.usedExports === true)
-            module.id = request;
+        if (mod.usedExports === true)
+            mod.id = request;
     }
     processModule(mod, context) {
         for (let i = 0; i < this.options.externalModules.length; i++) {
@@ -165,6 +165,18 @@ class ExternalAccessModule extends Module {
         // Info from Factory
         this.request = mod.rawRequest;
         this.ident = this.request;
+        this.type = mod.type;
+        this.context = context;
+        this.debugId = mod.debugId;
+        this.hash = mod.hash;
+        this.renderedHash = mod.renderedHash;
+        this.reasons = mod.reasons;
+        this.id = this.request;
+        this.index = mod.index;
+        this.index2 = mod.index2;
+        this.depth = mod.depth;
+        this.used = mod.used;
+        this.usedExports = mod.usedExports;
     }
     libIdent() {
         return this.ident;
