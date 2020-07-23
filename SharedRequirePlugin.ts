@@ -101,23 +101,16 @@ class SharedRequirePlugin
                 {
                     modules.forEach((module) =>
 					{
-						if ("rawRequest" in module)
+						if ("rawRequest" in module) 
 						{
-							let request	= module.rawRequest;
-							
-							if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
-								return;
-							
-							if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
-								return;
-							
-							if (request.charAt(1) === ":") // Windows Drives
-								return;
-							
-							if (request.charAt(2) === "!") // Loaders
-								return;
-							
-							module.id	= request;
+							let request = module.rawRequest;
+							this.processModuleId(module, request);
+						}
+						else
+						if ("rootModule" in module) // Concatenated Module
+						{
+							let request = module.rootModule.rawRequest;
+							this.processModuleId(module.rootModule, request);
 						}
 					});
 
@@ -131,24 +124,17 @@ class SharedRequirePlugin
                     {
                         chunk.getModules().forEach((module) =>
                         {
-                            if ("rawRequest" in module)
-                            {
-                                let request	= module.rawRequest;
-                                
-                                if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
-                                    return;
-                                
-                                if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
-                                    return;
-                                
-                                if (request.charAt(1) === ":") // Windows Drives
-                                    return;
-                                
-                                if (request.charAt(2) === "!") // Loaders
-                                    return;
-                                
-                                module.id	= request;
-                            }
+                            if ("rawRequest" in module) 
+							{								
+								let request = module.rawRequest;
+								this.processModuleId(module, request);
+							}
+							else
+							if ("rootModule" in module) // Concatenated Module
+							{
+								let request = module.rootModule.rawRequest;
+								this.processModuleId(module.rootModule, request);
+							}
                         });
                     });
 
@@ -175,6 +161,24 @@ class SharedRequirePlugin
         });
     }
 
+	processModuleId(module, request:string):void
+	{		
+		if (module.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+			return;
+		
+		if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
+			return;
+		
+		if (request.charAt(1) === ":") // Windows Drives
+			return;
+		
+		if (request.charAt(2) === "!") // Loaders
+			return;
+	
+		if (module.usedExports === true)
+			module.id = request;
+	}
+	
     processModule(mod, context)
     {
         for (let i:number = 0; i < this.options.externalModules.length; i++)
