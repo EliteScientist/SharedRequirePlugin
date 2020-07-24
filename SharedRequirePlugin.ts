@@ -227,7 +227,6 @@ class ExternalAccessModule extends Module
 		
         // Info from Factory
         this.request        = mod.rawRequest;
-		this.userRequest	= mod.userRequest;
         this.ident          = mod.ident;
 		this.libIdent		= mod.libIdent;
 		
@@ -242,8 +241,8 @@ class ExternalAccessModule extends Module
 		this.index			= mod.index;
 		this.index2			= mod.index2;
 		this.depth			= mod.depth;
-		this.used			= mod.used;
-		this.usedExports	= mod.usedExports;
+		this.used			= true;
+		this.usedExports	= true;
     }
 
     libIdent(options) {
@@ -257,7 +256,7 @@ class ExternalAccessModule extends Module
 
     readableIdentifier(requestShortener) 
 	{
-		return requestShortener.shorten(this.userRequest);
+		return requestShortener.shorten(this.request);
 	}
 
     needRebuild(fileTimestamps: any, contextTimestamps:any):boolean { return false; }

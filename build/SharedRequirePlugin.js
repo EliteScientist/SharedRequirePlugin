@@ -164,7 +164,6 @@ class ExternalAccessModule extends Module {
         this.options = options;
         // Info from Factory
         this.request = mod.rawRequest;
-        this.userRequest = mod.userRequest;
         this.ident = mod.ident;
         this.libIdent = mod.libIdent;
         this.type = mod.type;
@@ -178,8 +177,8 @@ class ExternalAccessModule extends Module {
         this.index = mod.index;
         this.index2 = mod.index2;
         this.depth = mod.depth;
-        this.used = mod.used;
-        this.usedExports = mod.usedExports;
+        this.used = true;
+        this.usedExports = true;
     }
     libIdent(options) {
         return contextify(options.context, this.userRequest);
@@ -188,7 +187,7 @@ class ExternalAccessModule extends Module {
         return this.request;
     }
     readableIdentifier(requestShortener) {
-        return requestShortener.shorten(this.userRequest);
+        return requestShortener.shorten(this.request);
     }
     needRebuild(fileTimestamps, contextTimestamps) { return false; }
     size() { return 12; }
