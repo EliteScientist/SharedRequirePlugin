@@ -27,6 +27,7 @@ import { RawSource } from "webpack-sources";
 const Module    = require("webpack").Module;
 const Template  = require("webpack").Template;
 const RawSource = require("webpack-sources").RawSource;
+const contextify = require("webpack/lib/util/identifier").contextify;
 
 const pluginName	= "SharedRequirePlugin";
 
@@ -175,8 +176,7 @@ class SharedRequirePlugin
 		if (request.charAt(2) === "!") // Loaders
 			return;
 	
-		if (mod.usedExports === true)
-			mod.id = request;
+		mod.id = request;
 	}
 	
     processModule(mod, context)
@@ -215,6 +215,7 @@ class SharedRequirePlugin
 class ExternalAccessModule extends Module
 {
     request:String;
+	userReqest:string;
     ident:String;
     options:SharedRequirePluginOptions;
 
@@ -223,16 +224,19 @@ class ExternalAccessModule extends Module
         super("javascript/dynamic", context);
 
         this.options        = options;
-
+		
         // Info from Factory
         this.request        = mod.rawRequest;
-        this.ident          = this.request;
+		this.userRequest	= mod.userRequest;
+        this.ident          = mod.ident;
+		this.libIdent		= mod.libIdent;
 		
 		this.type			= mod.type;
 		this.context		= context;
 		this.debugId		= mod.debugId;
 		this.hash			= mod.hash;
 		this.renderedHash	= mod.renderedHash;
+		this.resolveOptions = mod.resolveOptions;
 		this.reasons		= mod.reasons;
 		this.id				= this.request;
 		this.index			= mod.index;
@@ -242,20 +246,19 @@ class ExternalAccessModule extends Module
 		this.usedExports	= mod.usedExports;
     }
 
-    libIdent():String
-    {
-        return this.ident;
-    }
+    libIdent(options) {
+		return contextify(options.context, this.userRequest);
+	}
 
     identifier():String
     {
-        return this.ident;
+        return this.request;
     }
 
-    readableIdentifier():String
-    {
-        return this.ident;
-    }
+    readableIdentifier(requestShortener) 
+	{
+		return requestShortener.shorten(this.userRequest);
+	}
 
     needRebuild(fileTimestamps: any, contextTimestamps:any):boolean { return false; }
     size():Number { return 12; }
@@ -278,7 +281,7 @@ class ExternalAccessModule extends Module
     {
         this.built      = true;
         this.buildMeta  = {};
-        this.buildInfo  = {};
+        this.buildInfo  = {cacheable: true};
         callback();
     }
 }

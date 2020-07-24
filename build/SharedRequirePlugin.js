@@ -25,6 +25,7 @@
 const Module = require("webpack").Module;
 const Template = require("webpack").Template;
 const RawSource = require("webpack-sources").RawSource;
+const contextify = require("webpack/lib/util/identifier").contextify;
 const pluginName = "SharedRequirePlugin";
 class SharedRequirePlugin {
     /**
@@ -130,8 +131,7 @@ class SharedRequirePlugin {
             return;
         if (request.charAt(2) === "!") // Loaders
             return;
-        if (mod.usedExports === true)
-            mod.id = request;
+        mod.id = request;
     }
     processModule(mod, context) {
         for (let i = 0; i < this.options.externalModules.length; i++) {
@@ -164,12 +164,15 @@ class ExternalAccessModule extends Module {
         this.options = options;
         // Info from Factory
         this.request = mod.rawRequest;
-        this.ident = this.request;
+        this.userRequest = mod.userRequest;
+        this.ident = mod.ident;
+        this.libIdent = mod.libIdent;
         this.type = mod.type;
         this.context = context;
         this.debugId = mod.debugId;
         this.hash = mod.hash;
         this.renderedHash = mod.renderedHash;
+        this.resolveOptions = mod.resolveOptions;
         this.reasons = mod.reasons;
         this.id = this.request;
         this.index = mod.index;
@@ -178,14 +181,14 @@ class ExternalAccessModule extends Module {
         this.used = mod.used;
         this.usedExports = mod.usedExports;
     }
-    libIdent() {
-        return this.ident;
+    libIdent(options) {
+        return contextify(options.context, this.userRequest);
     }
     identifier() {
-        return this.ident;
+        return this.request;
     }
-    readableIdentifier() {
-        return this.ident;
+    readableIdentifier(requestShortener) {
+        return requestShortener.shorten(this.userRequest);
     }
     needRebuild(fileTimestamps, contextTimestamps) { return false; }
     size() { return 12; }
@@ -202,7 +205,7 @@ class ExternalAccessModule extends Module {
     build(options, compilation, resolver, fs, callback) {
         this.built = true;
         this.buildMeta = {};
-        this.buildInfo = {};
+        this.buildInfo = { cacheable: true };
         callback();
     }
 }
