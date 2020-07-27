@@ -54,7 +54,7 @@ class SharedRequirePlugin {
                 const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
                 // Add Global Shared Requre to template
                 mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) => {
-                    const buf = [source];
+                    const buf = [];
                     buf.push("// Shared-Require Global Module Provider Function");
                     buf.push("window.requireSharedModule = function (moduleId)");
                     buf.push("{");
@@ -77,7 +77,7 @@ class SharedRequirePlugin {
                     return Template.asString(buf);
                 });
                 // Modify Module IDs to be requested id
-                compilation.hooks.optimizeModuleIds.tap(pluginName, (modules) => {
+                compilation.hooks.moduleIds.tap(pluginName, (modules) => {
                     modules.forEach((mod) => {
                         if ("rawRequest" in mod) {
                             let request = mod.rawRequest;
@@ -89,23 +89,6 @@ class SharedRequirePlugin {
                             this.processModuleId(mod, request);
                         }
                     });
-                });
-                // Process Chunk Module Ids
-                compilation.hooks.afterOptimizeChunkIds.tap(pluginName, (chunks) => {
-                    chunks.forEach((chunk) => {
-                        chunk.getModules().forEach((mod) => {
-                            if ("rawRequest" in mod) {
-                                let request = mod.rawRequest;
-                                this.processModuleId(mod, request);
-                            }
-                            else if ("rootModule" in mod) // Concatenated Module
-                             {
-                                let request = mod.rootModule.rawRequest;
-                                this.processModuleId(mod, request);
-                            }
-                        });
-                    });
-                    return chunks;
                 });
             });
         }
@@ -179,6 +162,9 @@ class ExternalAccessModule extends Module {
         this.depth = mod.depth;
         this.used = true;
         this.usedExports = true;
+        this.built = true;
+        this.buildMeta = {};
+        this.buildInfo = { cacheable: true };
     }
     libIdent(options) {
         return contextify(options.context, this.userRequest);
@@ -198,8 +184,17 @@ class ExternalAccessModule extends Module {
     source(dependencyTemplates, runtime) {
         // TODO: Make log console error if the glboalModulesRequire method doesn't exist or the module doesn't exist.
         let req = JSON.stringify(this.request);
-        let src = `module.exports = window.${this.options.globalModulesRequire}(${req});`;
-        return new RawSource(src);
+        const buf = [];
+        buf.push("try");
+        buf.push("{");
+        buf.push(Template.indent(`module.exports = window.${this.options.globalModulesRequire}(${req});`));
+        buf.push("}");
+        buf.push("catch (error)");
+        buf.push("{");
+        buf.push(Template.indent("module.exports = null; // Shared System/Module not available"));
+        buf.push(Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`));
+        buf.push("}");
+        return new RawSource(Template.asString(buf));
     }
     build(options, compilation, resolver, fs, callback) {
         this.built = true;
