@@ -112,7 +112,7 @@ class SharedRequirePlugin {
             return;
         if (request.charAt(1) === ":") // Windows Drives
             return;
-        if (request.charAt(2) === "!") // Loaders
+        if (request.indexOf("!") > -1) // Loaders
             return;
         mod.id = request;
     }
