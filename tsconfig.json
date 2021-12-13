@@ -7,7 +7,7 @@
 		"noEmit":	false,                        /* Do not emit outputs. */
 		"target": 	"es6",
 		"outDir":	"build",
-		"module":	"es6",
+		"module":	"commonjs",
 		"paths": 
 		{
 			"*": 

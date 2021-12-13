@@ -1,3 +1,4 @@
+"use strict";
 /*
    MIT License
 
@@ -22,10 +23,15 @@
     SOFTWARE.
  
  */
-const Module = require("webpack").Module;
-const Template = require("webpack").Template;
-const RawSource = require("webpack-sources").RawSource;
-const contextify = require("webpack/lib/util/identifier").contextify;
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const SharedRequirePluginModule_1 = require("./SharedRequirePluginModule");
+const webpack_1 = require("webpack");
+const webpack_sources_1 = require("webpack-sources");
+const identifier_1 = require("webpack/lib/util/identifier");
+const RawModule_1 = __importDefault(require("webpack/lib/RawModule"));
 const pluginName = "SharedRequirePlugin";
 class SharedRequirePlugin {
     /**
@@ -49,85 +55,59 @@ class SharedRequirePlugin {
     apply(compiler) {
         // Begin Compilation
         if (this.options.provider) {
+            // Module Provider
             // Configure Compiler
-            compiler.hooks.compilation.tap(pluginName, (compilation, params) => {
-                const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
+            compiler.hooks.compilation.tap(pluginName, (compilation) => {
                 // Add Global Shared Requre to template
-                mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) => {
-                    const buf = [];
-                    buf.push("// Shared-Require Global Module Provider Function");
-                    buf.push("window.requireSharedModule = function (moduleId)");
-                    buf.push("{");
-                    buf.push(Template.indent(`return ${mainTemplate.requireFn}(moduleId);`));
-                    buf.push("}");
-                    if (this.options.compatibility) {
-                        buf.push("");
-                        buf.push("// Shared-Require Backwards Compatiblity");
-                        buf.push("Object.defineProperty(window, \"globalSharedModules\",");
-                        buf.push("{");
-                        buf.push(Template.indent([
-                            "get: function()",
-                            "{",
-                            Template.indent("if (!window._globalSharedModules)"),
-                            Template.indent("{"),
-                            Template.indent(Template.indent("window._globalSharedModules	= new Proxy(installedModules,")),
-                            Template.indent(Template.indent("{")),
-                            Template.indent(Template.indent(Template.indent("get: function (target, prop, receiver)"))),
-                            Template.indent(Template.indent(Template.indent("{"))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("if (isNaN(prop))")))),
-                            Template.indent(Template.indent(Template.indent(Template.indent(Template.indent("return target[prop];"))))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("")))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("return null;")))),
-                            Template.indent(Template.indent(Template.indent("},"))),
-                            Template.indent(Template.indent(Template.indent("has: function (target, prop)"))),
-                            Template.indent(Template.indent(Template.indent("{"))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("if (isNaN(prop))")))),
-                            Template.indent(Template.indent(Template.indent(Template.indent(Template.indent("return prop in target;"))))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("")))),
-                            Template.indent(Template.indent(Template.indent(Template.indent("return false;")))),
-                            Template.indent(Template.indent(Template.indent("}"))),
-                            Template.indent(Template.indent("});")),
-                            Template.indent("}"),
-                            Template.indent(""),
-                            Template.indent("return window._globalSharedModules;"),
-                            "},",
-                            "configurable: true"
-                        ]));
-                        buf.push("});");
-                    }
-                    return Template.asString(buf);
+                compilation.hooks.runtimeRequirementInTree
+                    .for(webpack_1.RuntimeGlobals.requireScope)
+                    .tap(pluginName, (chunk, runtimeRequirements) => {
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.startupOnlyBefore);
+                    compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+                    return true;
                 });
+                /*compilation.hooks.additionalChunkRuntimeRequirements.tap(pluginName, (chunk, runtimeRequirements) =>
+                {
+                    runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
+                    compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+                });
+                */
                 // Modify Module IDs to be requested id
                 compilation.hooks.moduleIds.tap(pluginName, (modules) => {
                     modules.forEach((mod) => {
                         if ("rawRequest" in mod) {
-                            let request = mod.rawRequest;
-                            this.processModuleId(mod, request);
+                            const request = mod.rawRequest;
+                            this.processModuleId(mod, request, compilation);
                         }
                         else if ("rootModule" in mod) // Concatenated Module
                          {
-                            let request = mod.rootModule.rawRequest;
-                            this.processModuleId(mod, request);
+                            const request = mod.rootModule.rawRequest;
+                            this.processModuleId(mod, request, compilation);
                         }
                     });
                 });
             });
         }
-        // Get Module Factory
-        compiler.hooks.normalModuleFactory.tap(pluginName, factory => {
-            if (!this.options.provider && this.options.externalModules != null) {
+        else if (this.options.externalModules && this.options.externalModules.length > 0) {
+            // Module Consumer
+            // Get Module Factory
+            compiler.hooks.normalModuleFactory.tap(pluginName, (factory) => {
                 // Configure Resolver to resolve external modules
-                factory.hooks.resolver.tap(pluginName, resolver => {
-                    let extResolver = new ExternalResolver(this.options, resolver);
+                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this, webpack_1.Compilation));
+                /*
+                factory.hooks.resolver.tap(pluginName, resolver =>
+                {
+                    let extResolver = new ExternalResolver(this.options, resolver)
                     return extResolver.apply.bind(extResolver);
-                });
+                });*/
                 // Create external access module for external modules. The ExternalAccessModule returns JS to acquire the module from the provider.
-                factory.hooks.module.tap(pluginName, this.processModule.bind(this));
-            }
-        });
+                //factory.hooks.module.tap(pluginName, this.processModule.bind(this));
+            });
+        }
     }
-    processModuleId(mod, request) {
-        if (mod.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+    processModuleId(mod, request, compilation) {
+        const moduleId = compilation.chunkGraph.getModuleId(mod);
+        if (moduleId === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
             return;
         if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
             return;
@@ -135,7 +115,7 @@ class SharedRequirePlugin {
             return;
         if (request.indexOf("!") > -1) // Loaders
             return;
-        mod.id = request;
+        compilation.chunkGraph.setModuleId(mod, request);
     }
     processModule(mod, context) {
         for (let i = 0; i < this.options.externalModules.length; i++) {
@@ -143,52 +123,71 @@ class SharedRequirePlugin {
             if (typeof moduleName === "string")
                 moduleName = "^" + moduleName + "$";
             if (mod.rawRequest.match(moduleName) != null)
-                return new ExternalAccessModule(mod, context, this.options);
+                return new ExternalAccessModule(mod, this.options);
         }
         return mod;
     }
-    /**
-     * Process the AST documents found by webpack's parser
-     *
-     * @param ast AST instance
-     * @param comments Code comment blocks
-     */
-    processAst(ast, comments) {
-        // TODO:
+    resolveModule(compilation, data, callback) {
+        if (this.options.externalModules != null && this.options.externalModules.length > 0) {
+            for (let i = 0; i < this.options.externalModules.length; i++) {
+                let moduleName = this.options.externalModules[i];
+                if (typeof moduleName === "string")
+                    moduleName = "^" + moduleName + "$";
+                if (data.request.match(moduleName) != null) {
+                    const runtimeRequirements = new Set([
+                        webpack_1.RuntimeGlobals.module,
+                        webpack_1.RuntimeGlobals.require
+                    ]);
+                    return new RawModule_1.default(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);
+                }
+            }
+        }
+    }
+    getSource(request) {
+        let req = JSON.stringify(request);
+        const buf = [];
+        //buf.push("(module, exports) =>")
+        //buf.push("{");
+        buf.push(webpack_1.Template.indent("try"));
+        buf.push(webpack_1.Template.indent("{"));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`module.exports = ${webpack_1.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
+        buf.push(webpack_1.Template.indent("}"));
+        buf.push(webpack_1.Template.indent("catch (error)"));
+        buf.push(webpack_1.Template.indent("{"));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent("module.exports = null; // Shared System/Module not available")));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`)));
+        buf.push(webpack_1.Template.indent("}"));
+        //buf.push("}");
+        return webpack_1.Template.asString(buf);
     }
 }
+exports.default = SharedRequirePlugin;
 /**
  * External Access Module
  *
  * This module creates mechanism to retrieve modules that are provided by the provider application.
  */
-class ExternalAccessModule extends Module {
-    constructor(mod, context, options) {
-        super("javascript/dynamic", context);
+class ExternalAccessModule extends webpack_1.Module {
+    constructor(mod, options) {
+        super("javascript/dynamic", mod.context);
         this.options = options;
         // Info from Factory
         this.request = mod.rawRequest;
         this.ident = mod.ident;
         this.libIdent = mod.libIdent;
-        this.type = mod.type;
-        this.context = context;
-        this.debugId = mod.debugId;
-        this.hash = mod.hash;
-        this.renderedHash = mod.renderedHash;
-        this.resolveOptions = mod.resolveOptions;
-        this.reasons = mod.reasons;
+        //this._hash			= mod.hash;
+        //this.renderedHash	= mod.renderedHash;
+        //this.resolveOptions = mod.resolveOptions;
+        //this.reasons		= mod.reasons;
         this.id = this.request;
-        this.index = mod.index;
-        this.index2 = mod.index2;
-        this.depth = mod.depth;
-        this.used = true;
-        this.usedExports = true;
-        this.built = true;
-        this.buildMeta = {};
-        this.buildInfo = { cacheable: true };
+        //this.index			= mod.index;
+        //this.index2			= mod.index2;
+        //this.depth			= mod.depth;
+        this.buildMeta = undefined; //{};
+        this.buildInfo = undefined; // {cacheable: true};
     }
     libIdent(options) {
-        return contextify(options.context, this.userRequest);
+        return (0, identifier_1.contextify)(options.context, this.userRequest);
     }
     identifier() {
         return this.request;
@@ -196,38 +195,36 @@ class ExternalAccessModule extends Module {
     readableIdentifier(requestShortener) {
         return requestShortener.shorten(this.request);
     }
-    needRebuild(fileTimestamps, contextTimestamps) { return false; }
-    size() { return 12; }
-    updateHash(hash) {
+    needBuild(context, callback) { callback(null, false); }
+    size(type) { return 12; }
+    updateHash(hash, context) {
         hash.update(this.identifier());
-        super.updateHash(hash);
+        super.updateHash(hash, context);
     }
-    source(dependencyTemplates, runtime) {
+    source(dependencyTemplates, runtime, type) {
         // TODO: Make log console error if the glboalModulesRequire method doesn't exist or the module doesn't exist.
         let req = JSON.stringify(this.request);
         const buf = [];
         buf.push("try");
         buf.push("{");
-        buf.push(Template.indent(`module.exports = window.${this.options.globalModulesRequire}(${req});`));
+        buf.push(webpack_1.Template.indent(`module.exports = window.${this.options.globalModulesRequire}(${req});`));
         buf.push("}");
         buf.push("catch (error)");
         buf.push("{");
-        buf.push(Template.indent("module.exports = null; // Shared System/Module not available"));
-        buf.push(Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`));
+        buf.push(webpack_1.Template.indent("module.exports = null; // Shared System/Module not available"));
+        buf.push(webpack_1.Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`));
         buf.push("}");
-        return new RawSource(Template.asString(buf));
+        return new webpack_sources_1.RawSource(webpack_1.Template.asString(buf));
     }
     build(options, compilation, resolver, fs, callback) {
-        this.built = true;
+        //this.built      = true;
         this.buildMeta = {};
         this.buildInfo = { cacheable: true };
         callback();
     }
-}
-/**
- * Shared Require Plugin Options
- */
-class SharedRequirePluginOptions {
+    toString() {
+        return `Module: ${this.request}`;
+    }
 }
 /**
  * External Resolver

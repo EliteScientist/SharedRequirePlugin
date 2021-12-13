@@ -1,5 +1,3 @@
-import { RawSource } from "webpack-sources";
-
 /*
    MIT License
 
@@ -24,14 +22,16 @@ import { RawSource } from "webpack-sources";
     SOFTWARE.
  
  */
-const Module    = require("webpack").Module;
-const Template  = require("webpack").Template;
-const RawSource = require("webpack-sources").RawSource;
-const contextify = require("webpack/lib/util/identifier").contextify;
+
+import {SharedRequirePluginModule} from "./SharedRequirePluginModule";
+import {Template, RuntimeGlobals, Module, Compilation} from "webpack";
+import {RawSource} from "webpack-sources";
+import {contextify} from "webpack/lib/util/identifier";
+import RawModule from "webpack/lib/RawModule";
 
 const pluginName	= "SharedRequirePlugin";
 
-class SharedRequirePlugin
+export default class SharedRequirePlugin
 {
     options:SharedRequirePluginOptions;     // Plugin Configuration
 
@@ -63,61 +63,26 @@ class SharedRequirePlugin
         // Begin Compilation
         if (this.options.provider)
         {            
+            // Module Provider
             // Configure Compiler
-            compiler.hooks.compilation.tap(pluginName, (compilation, params) =>
+            compiler.hooks.compilation.tap(pluginName, (compilation) =>
             {
-                const { mainTemplate, chunkTemplate, moduleTemplates, runtimeTemplate } = compilation;
-
-                // Add Global Shared Requre to template
-                mainTemplate.hooks.beforeStartup.tap(pluginName, (source, chunk, hash) =>
-                {
-                    const buf = [];
-                    buf.push("// Shared-Require Global Module Provider Function");
-                    buf.push("window.requireSharedModule = function (moduleId)");
-                    buf.push("{");
-                    buf.push(Template.indent(`return ${mainTemplate.requireFn}(moduleId);`));
-                    buf.push("}");
-
-                    if (this.options.compatibility)
+                 // Add Global Shared Requre to template
+                 compilation.hooks.runtimeRequirementInTree
+                    .for(RuntimeGlobals.requireScope)
+                    .tap(pluginName, (chunk, runtimeRequirements) =>
                     {
-                        buf.push("");
-                        buf.push("// Shared-Require Backwards Compatiblity");
-                        buf.push("Object.defineProperty(window, \"globalSharedModules\",");
-                        buf.push("{");
-                        buf.push(Template.indent([
-                            "get: function()",
-                            "{",
-								Template.indent("if (!window._globalSharedModules)"),
-								Template.indent("{"),
-								Template.indent(Template.indent("window._globalSharedModules	= new Proxy(installedModules,")),
-								Template.indent(Template.indent("{")),
-								Template.indent(Template.indent(Template.indent("get: function (target, prop, receiver)"))),
-								Template.indent(Template.indent(Template.indent("{"))),
-								Template.indent(Template.indent(Template.indent(Template.indent("if (isNaN(prop))")))),
-								Template.indent(Template.indent(Template.indent(Template.indent(Template.indent("return target[prop];"))))),
-								Template.indent(Template.indent(Template.indent(Template.indent("")))),
-								Template.indent(Template.indent(Template.indent(Template.indent("return null;")))),
-								Template.indent(Template.indent(Template.indent("},"))),
-								Template.indent(Template.indent(Template.indent("has: function (target, prop)"))),
-								Template.indent(Template.indent(Template.indent("{"))),
-								Template.indent(Template.indent(Template.indent(Template.indent("if (isNaN(prop))")))),
-								Template.indent(Template.indent(Template.indent(Template.indent(Template.indent("return prop in target;"))))),
-								Template.indent(Template.indent(Template.indent(Template.indent("")))),
-								Template.indent(Template.indent(Template.indent(Template.indent("return false;")))),
-								Template.indent(Template.indent(Template.indent("}"))),
-								
-								Template.indent(Template.indent("});")),
-								Template.indent("}"),
-								Template.indent(""),
-								Template.indent("return window._globalSharedModules;"),
-                            "},",
-                            "configurable: true"
-                        ]));
-                        buf.push("});");
-                    }
+                        runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
+                        compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
 
-                    return Template.asString(buf);
-                });
+                        return true;
+                    });
+				/*compilation.hooks.additionalChunkRuntimeRequirements.tap(pluginName, (chunk, runtimeRequirements) =>
+				{
+					runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
+					compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+				});
+                */
                 
                 // Modify Module IDs to be requested id
                 compilation.hooks.moduleIds.tap(pluginName, (modules) =>
@@ -126,42 +91,47 @@ class SharedRequirePlugin
 					{
 						if ("rawRequest" in mod) 
 						{
-							let request = mod.rawRequest;
-							this.processModuleId(mod, request);
+							const request = mod.rawRequest;
+							this.processModuleId(mod, request, compilation);
 						}
 						else
 						if ("rootModule" in mod) // Concatenated Module
 						{
-							let request = mod.rootModule.rawRequest;
-							this.processModuleId(mod, request);
+							const request = mod.rootModule.rawRequest;
+							this.processModuleId(mod, request, compilation);
 						}
 					});
-
-                });				
+                });
             });
         }
-        
-        // Get Module Factory
-        compiler.hooks.normalModuleFactory.tap(pluginName, factory =>
+        else
+        if (this.options.externalModules && this.options.externalModules.length > 0)
         {
-            if (!this.options.provider && this.options.externalModules != null)
+            // Module Consumer
+            // Get Module Factory
+            compiler.hooks.normalModuleFactory.tap(pluginName, (factory) =>
             {
                 // Configure Resolver to resolve external modules
+                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this, Compilation));
+
+                /*
                 factory.hooks.resolver.tap(pluginName, resolver =>
                 {
                     let extResolver = new ExternalResolver(this.options, resolver)
                     return extResolver.apply.bind(extResolver);
-                });
+                });*/
 
                 // Create external access module for external modules. The ExternalAccessModule returns JS to acquire the module from the provider.
-                factory.hooks.module.tap(pluginName, this.processModule.bind(this));
-            }
-        });
+                //factory.hooks.module.tap(pluginName, this.processModule.bind(this));
+            });
+        }
     }
 
-	processModuleId(mod, request:string):void
+	processModuleId(mod, request:string, compilation:Compilation):void
 	{		
-		if (mod.id === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
+        const moduleId = compilation.chunkGraph.getModuleId(mod);
+
+		if (moduleId === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
 			return;
 		
 		if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
@@ -172,11 +142,11 @@ class SharedRequirePlugin
 		
 		if (request.indexOf("!") > -1) // Loaders
 			return;
-	
-		mod.id = request;
+
+        compilation.chunkGraph.setModuleId(mod, request);
 	}
 	
-    processModule(mod, context)
+    processModule(mod, context):Module
     {
         for (let i:number = 0; i < this.options.externalModules.length; i++)
         {
@@ -186,21 +156,55 @@ class SharedRequirePlugin
 				moduleName	= "^" + moduleName + "$";
 
             if (mod.rawRequest.match(moduleName) != null)
-                return new ExternalAccessModule(mod, context, this.options);
+                return new ExternalAccessModule(mod, this.options);
         }
 
         return mod;
     }
 
-    /**
-     * Process the AST documents found by webpack's parser
-     * 
-     * @param ast AST instance
-     * @param comments Code comment blocks
-     */
-    processAst(ast, comments)
+    resolveModule(compilation:Compilation, data:any, callback: Function):Module | boolean | undefined
     {
-    // TODO:
+        if (this.options.externalModules != null && this.options.externalModules.length > 0)
+        {
+            for (let i:number = 0; i < this.options.externalModules.length; i++)
+            {
+                let moduleName  = this.options.externalModules[i];
+				
+				if (typeof moduleName === "string")
+					moduleName	= "^" + moduleName + "$";
+    
+                if (data.request.match(moduleName) != null)
+                {
+                    const runtimeRequirements    = new Set([
+                        RuntimeGlobals.module,
+                        RuntimeGlobals.require
+                    ]);
+
+                    return new RawModule(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);
+                }
+            }
+        }
+    }
+
+    getSource(request):string
+    {
+        let req	= JSON.stringify(request);
+		
+		const buf = [];
+		
+        //buf.push("(module, exports) =>")
+        //buf.push("{");
+		buf.push(Template.indent("try"));
+		buf.push(Template.indent("{"));
+        buf.push(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
+        buf.push(Template.indent("}"));
+		buf.push(Template.indent("catch (error)"));
+		buf.push(Template.indent("{"));
+		buf.push(Template.indent(Template.indent("module.exports = null; // Shared System/Module not available")));
+		buf.push(Template.indent(Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`)));
+		buf.push(Template.indent("}"));
+        //buf.push("}");
+        return Template.asString(buf);
     }
 }
 
@@ -211,14 +215,14 @@ class SharedRequirePlugin
  */
 class ExternalAccessModule extends Module
 {
-    request:String;
-	userReqest:string;
-    ident:String;
+    request:string;
+	userRequest:string;
+    ident:string;
     options:SharedRequirePluginOptions;
-
-    constructor(mod, context, options) 
+    
+    constructor(mod, options) 
     {
-        super("javascript/dynamic", context);
+        super("javascript/dynamic", mod.context);
 
         this.options        = options;
 		
@@ -226,31 +230,26 @@ class ExternalAccessModule extends Module
         this.request        = mod.rawRequest;
         this.ident          = mod.ident;
 		this.libIdent		= mod.libIdent;
-		
-		this.type			= mod.type;
-		this.context		= context;
-		this.debugId		= mod.debugId;
-		this.hash			= mod.hash;
-		this.renderedHash	= mod.renderedHash;
-		this.resolveOptions = mod.resolveOptions;
-		this.reasons		= mod.reasons;
+
+		//this._hash			= mod.hash;
+		//this.renderedHash	= mod.renderedHash;
+		//this.resolveOptions = mod.resolveOptions;
+		//this.reasons		= mod.reasons;
 		this.id				= this.request;
-		this.index			= mod.index;
-		this.index2			= mod.index2;
-		this.depth			= mod.depth;
-		this.used			= true;
-		this.usedExports	= true;
+		//this.index			= mod.index;
+		//this.index2			= mod.index2;
+		//this.depth			= mod.depth;
 		
-		this.built      = true;
-        this.buildMeta  = {};
-        this.buildInfo  = {cacheable: true};
+        this.buildMeta  = undefined;//{};
+        this.buildInfo  = undefined;// {cacheable: true};
     }
+
 
     libIdent(options) {
 		return contextify(options.context, this.userRequest);
 	}
 
-    identifier():String
+    identifier():string
     {
         return this.request;
     }
@@ -260,16 +259,17 @@ class ExternalAccessModule extends Module
 		return requestShortener.shorten(this.request);
 	}
 
-    needRebuild(fileTimestamps: any, contextTimestamps:any):boolean { return false; }
-    size():Number { return 12; }
+    needBuild(context, callback):void { callback(null, false); }
+    size(type?:string):number { return 12; }
 
-    updateHash(hash):void
+    
+    updateHash(hash, context):void
     {
         hash.update(this.identifier());
-        super.updateHash(hash);
+        super.updateHash(hash, context);
     }
 
-    source(dependencyTemplates, runtime):RawSource
+    source(dependencyTemplates, runtime, type):RawSource
     {
         // TODO: Make log console error if the glboalModulesRequire method doesn't exist or the module doesn't exist.
 		let req	= JSON.stringify(this.request);
@@ -290,22 +290,27 @@ class ExternalAccessModule extends Module
 
     build(options, compilation, resolver, fs, callback) 
     {
-        this.built      = true;
+        //this.built      = true;
         this.buildMeta  = {};
         this.buildInfo  = {cacheable: true};
         callback();
+    }
+
+    toString()
+    {
+        return `Module: ${this.request}`;
     }
 }
 
 /**
  * Shared Require Plugin Options
  */
-class SharedRequirePluginOptions
+interface SharedRequirePluginOptions
 {
     provider:Boolean;               // True if this project provides libraries to loaded applications and libraries
-    externalModules:Array<String>;  // List of external modules that are provided by the provider application
-    globalModulesRequire:String     // Global require method name
-    compatibility:Boolean;          // True to enable compatibility other projects built with older mechanism
+    externalModules:Array<string>;  // List of external modules that are provided by the provider application
+    globalModulesRequire:string;     // Global require method name
+    compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
 }
 
 /**
