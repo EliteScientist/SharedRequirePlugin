@@ -25,8 +25,6 @@
 
 import {SharedRequirePluginModule} from "./SharedRequirePluginModule";
 import {Template, RuntimeGlobals, Module, Compilation} from "webpack";
-import {RawSource} from "webpack-sources";
-import {contextify} from "webpack/lib/util/identifier";
 import RawModule from "webpack/lib/RawModule";
 
 const pluginName	= "SharedRequirePlugin";
@@ -77,13 +75,7 @@ export default class SharedRequirePlugin
 
                         return true;
                     });
-				/*compilation.hooks.additionalChunkRuntimeRequirements.tap(pluginName, (chunk, runtimeRequirements) =>
-				{
-					runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
-					compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
-				});
-                */
-                
+				
                 // Modify Module IDs to be requested id
                 compilation.hooks.moduleIds.tap(pluginName, (modules) =>
                 {
@@ -113,16 +105,6 @@ export default class SharedRequirePlugin
             {
                 // Configure Resolver to resolve external modules
                 factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this, Compilation));
-
-                /*
-                factory.hooks.resolver.tap(pluginName, resolver =>
-                {
-                    let extResolver = new ExternalResolver(this.options, resolver)
-                    return extResolver.apply.bind(extResolver);
-                });*/
-
-                // Create external access module for external modules. The ExternalAccessModule returns JS to acquire the module from the provider.
-                //factory.hooks.module.tap(pluginName, this.processModule.bind(this));
             });
         }
     }
@@ -146,22 +128,6 @@ export default class SharedRequirePlugin
         compilation.chunkGraph.setModuleId(mod, request);
 	}
 	
-    processModule(mod, context):Module
-    {
-        for (let i:number = 0; i < this.options.externalModules.length; i++)
-        {
-            let moduleName  = this.options.externalModules[i];
-			
-			if (typeof moduleName === "string")
-				moduleName	= "^" + moduleName + "$";
-
-            if (mod.rawRequest.match(moduleName) != null)
-                return new ExternalAccessModule(mod, this.options);
-        }
-
-        return mod;
-    }
-
     resolveModule(compilation:Compilation, data:any, callback: Function):Module | boolean | undefined
     {
         if (this.options.externalModules != null && this.options.externalModules.length > 0)
@@ -209,100 +175,6 @@ export default class SharedRequirePlugin
 }
 
 /**
- * External Access Module
- * 
- * This module creates mechanism to retrieve modules that are provided by the provider application.
- */
-class ExternalAccessModule extends Module
-{
-    request:string;
-	userRequest:string;
-    ident:string;
-    options:SharedRequirePluginOptions;
-    
-    constructor(mod, options) 
-    {
-        super("javascript/dynamic", mod.context);
-
-        this.options        = options;
-		
-        // Info from Factory
-        this.request        = mod.rawRequest;
-        this.ident          = mod.ident;
-		this.libIdent		= mod.libIdent;
-
-		//this._hash			= mod.hash;
-		//this.renderedHash	= mod.renderedHash;
-		//this.resolveOptions = mod.resolveOptions;
-		//this.reasons		= mod.reasons;
-		this.id				= this.request;
-		//this.index			= mod.index;
-		//this.index2			= mod.index2;
-		//this.depth			= mod.depth;
-		
-        this.buildMeta  = undefined;//{};
-        this.buildInfo  = undefined;// {cacheable: true};
-    }
-
-
-    libIdent(options) {
-		return contextify(options.context, this.userRequest);
-	}
-
-    identifier():string
-    {
-        return this.request;
-    }
-
-    readableIdentifier(requestShortener) 
-	{
-		return requestShortener.shorten(this.request);
-	}
-
-    needBuild(context, callback):void { callback(null, false); }
-    size(type?:string):number { return 12; }
-
-    
-    updateHash(hash, context):void
-    {
-        hash.update(this.identifier());
-        super.updateHash(hash, context);
-    }
-
-    source(dependencyTemplates, runtime, type):RawSource
-    {
-        // TODO: Make log console error if the glboalModulesRequire method doesn't exist or the module doesn't exist.
-		let req	= JSON.stringify(this.request);
-		
-		const buf = [];
-		
-		buf.push("try");
-		buf.push("{");
-        buf.push(Template.indent(`module.exports = window.${this.options.globalModulesRequire}(${req});`));
-        buf.push("}");
-		buf.push("catch (error)");
-		buf.push("{");
-		buf.push(Template.indent("module.exports = null; // Shared System/Module not available"));
-		buf.push(Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`));
-		buf.push("}");
-        return new RawSource(Template.asString(buf));
-    }
-
-    build(options, compilation, resolver, fs, callback) 
-    {
-        //this.built      = true;
-        this.buildMeta  = {};
-        this.buildInfo  = {cacheable: true};
-        callback();
-    }
-
-    toString()
-    {
-        return `Module: ${this.request}`;
-    }
-}
-
-/**
  * Shared Require Plugin Options
  */
 interface SharedRequirePluginOptions
@@ -312,45 +184,5 @@ interface SharedRequirePluginOptions
     globalModulesRequire:string;     // Global require method name
     compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
 }
-
-/**
- * External Resolver
- * 
- * Resolves external components. Prevents resolution error from occuring while building for components not compiled into this application.
- */
-class ExternalResolver
-{
-    options:SharedRequirePluginOptions;
-    parentResolver:Function;
-
-    constructor(options:SharedRequirePluginOptions, resolver:Function)
-    {
-        this.options        = options;
-        this.parentResolver = resolver;
-    }
-
-    apply(data, callback)
-    {
-        if (this.options.externalModules != null && this.options.externalModules.length > 0)
-        {
-            for (let i:number = 0; i < this.options.externalModules.length; i++)
-            {
-                let moduleName  = this.options.externalModules[i];
-				
-				if (typeof moduleName === "string")
-					moduleName	= "^" + moduleName + "$";
-    
-                if (data.request.match(moduleName) != null)
-                {
-                    callback(null, {type: "shared", resource: data.request, path: data.request, query: data.request, request: data.request, rawRequest: data.request, resolved: true, externalLibrary: true, settings: {}});
-                    return true;
-                }
-            }
-        }
-
-        this.parentResolver(data, callback);
-    }
-}
-
 
 module.exports = SharedRequirePlugin;
