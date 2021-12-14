@@ -59,51 +59,58 @@ export default class SharedRequirePlugin
     apply (compiler):void
     {
         // Begin Compilation
-        if (this.options.provider)
-        {            
-            // Module Provider
-            // Configure Compiler
-            compiler.hooks.compilation.tap(pluginName, (compilation) =>
-            {
-                 // Add Global Shared Requre to template
-                 compilation.hooks.runtimeRequirementInTree
-                    .for(RuntimeGlobals.requireScope)
-                    .tap(pluginName, (chunk, runtimeRequirements) =>
+
+        // Configure Compiler
+        compiler.hooks.compilation.tap(pluginName, (compilation) =>
+        {
+             // Add Global Shared Requre to template
+             compilation.hooks.runtimeRequirementInTree
+                .for(RuntimeGlobals.requireScope)
+                .tap(pluginName, (chunk, runtimeRequirements) =>
+                {
+                    // We will always need global available for providing and consuming
+                    runtimeRequirements.add(RuntimeGlobals.global);
+
+                    if (this.options.provider)
                     {
                         runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
                         runtimeRequirements.add(RuntimeGlobals.require);
-                        runtimeRequirements.add(RuntimeGlobals.global);
 
                         if (this.options.compatibility)
                             runtimeRequirements.add(RuntimeGlobals.moduleFactories);
 
                         compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+                    }
 
-                        return true;
-                    });
-				
-                // Modify Module IDs to be requested id
+                    return true;
+                }
+            );
+            
+            if (this.options.provider)
+            {
+                // Modify Module IDs to be requested id -- provider only. to make modules accessible by requested name
                 compilation.hooks.moduleIds.tap(pluginName, (modules) =>
                 {
                     modules.forEach((mod) =>
-					{
-						if ("rawRequest" in mod) 
-						{
-							const request = mod.rawRequest;
-							this.processModuleId(mod, request, compilation);
-						}
-						else
-						if ("rootModule" in mod) // Concatenated Module
-						{
-							const request = mod.rootModule.rawRequest;
-							this.processModuleId(mod, request, compilation);
-						}
-					});
+                    {
+                        if ("rawRequest" in mod) 
+                        {
+                            const request = mod.rawRequest;
+                            this.processModuleId(mod, request, compilation);
+                        }
+                        else
+                        if ("rootModule" in mod) // Concatenated Module
+                        {
+                            const request = mod.rootModule.rawRequest;
+                            this.processModuleId(mod, request, compilation);
+                        }
+                    });
                 });
-            });
-        }
-        else
-        if (this.options.externalModules && this.options.externalModules.length > 0)
+            }
+        });
+      
+        // Consumer
+        if (!this.options.provider && this.options.externalModules && this.options.externalModules.length > 0)
         {
             // Module Consumer
             // Get Module Factory

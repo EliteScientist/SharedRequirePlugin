@@ -52,23 +52,25 @@ class SharedRequirePlugin {
      */
     apply(compiler) {
         // Begin Compilation
-        if (this.options.provider) {
-            // Module Provider
-            // Configure Compiler
-            compiler.hooks.compilation.tap(pluginName, (compilation) => {
-                // Add Global Shared Requre to template
-                compilation.hooks.runtimeRequirementInTree
-                    .for(webpack_1.RuntimeGlobals.requireScope)
-                    .tap(pluginName, (chunk, runtimeRequirements) => {
+        // Configure Compiler
+        compiler.hooks.compilation.tap(pluginName, (compilation) => {
+            // Add Global Shared Requre to template
+            compilation.hooks.runtimeRequirementInTree
+                .for(webpack_1.RuntimeGlobals.requireScope)
+                .tap(pluginName, (chunk, runtimeRequirements) => {
+                // We will always need global available for providing and consuming
+                runtimeRequirements.add(webpack_1.RuntimeGlobals.global);
+                if (this.options.provider) {
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.startupOnlyBefore);
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.require);
-                    runtimeRequirements.add(webpack_1.RuntimeGlobals.global);
                     if (this.options.compatibility)
                         runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleFactories);
                     compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
-                    return true;
-                });
-                // Modify Module IDs to be requested id
+                }
+                return true;
+            });
+            if (this.options.provider) {
+                // Modify Module IDs to be requested id -- provider only. to make modules accessible by requested name
                 compilation.hooks.moduleIds.tap(pluginName, (modules) => {
                     modules.forEach((mod) => {
                         if ("rawRequest" in mod) {
@@ -82,9 +84,10 @@ class SharedRequirePlugin {
                         }
                     });
                 });
-            });
-        }
-        else if (this.options.externalModules && this.options.externalModules.length > 0) {
+            }
+        });
+        // Consumer
+        if (!this.options.provider && this.options.externalModules && this.options.externalModules.length > 0) {
             // Module Consumer
             // Get Module Factory
             compiler.hooks.normalModuleFactory.tap(pluginName, (factory) => {
