@@ -71,6 +71,12 @@ export default class SharedRequirePlugin
                     .tap(pluginName, (chunk, runtimeRequirements) =>
                     {
                         runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
+                        runtimeRequirements.add(RuntimeGlobals.require);
+                        runtimeRequirements.add(RuntimeGlobals.global);
+
+                        if (this.options.compatibility)
+                            runtimeRequirements.add(RuntimeGlobals.moduleFactories);
+
                         compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
 
                         return true;
@@ -143,7 +149,8 @@ export default class SharedRequirePlugin
                 {
                     const runtimeRequirements    = new Set([
                         RuntimeGlobals.module,
-                        RuntimeGlobals.require
+                        RuntimeGlobals.require,
+                        RuntimeGlobals.global
                     ]);
 
                     return new RawModule(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);

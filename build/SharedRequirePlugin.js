@@ -61,6 +61,10 @@ class SharedRequirePlugin {
                     .for(webpack_1.RuntimeGlobals.requireScope)
                     .tap(pluginName, (chunk, runtimeRequirements) => {
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.startupOnlyBefore);
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.require);
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.global);
+                    if (this.options.compatibility)
+                        runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleFactories);
                     compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
                     return true;
                 });
@@ -110,7 +114,8 @@ class SharedRequirePlugin {
                 if (data.request.match(moduleName) != null) {
                     const runtimeRequirements = new Set([
                         webpack_1.RuntimeGlobals.module,
-                        webpack_1.RuntimeGlobals.require
+                        webpack_1.RuntimeGlobals.require,
+                        webpack_1.RuntimeGlobals.global
                     ]);
                     return new RawModule_1.default(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);
                 }
