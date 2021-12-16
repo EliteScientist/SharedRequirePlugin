@@ -10,18 +10,20 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _SharedRequirePluginModule_compatibility, _SharedRequirePluginModule_requireFunction;
+var _SharedRequirePluginModule_compatibility, _SharedRequirePluginModule_requireFunction, _SharedRequirePluginModule_logMissingShares;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SharedRequirePluginModule = void 0;
 const webpack_1 = require("webpack");
 const semver_1 = require("webpack/lib/util/semver");
 class SharedRequirePluginModule extends webpack_1.RuntimeModule {
-    constructor(requireFunction, compatability = false) {
+    constructor(options) {
         super("SharedRequirePlugin", webpack_1.RuntimeModule.STAGE_ATTACH);
         _SharedRequirePluginModule_compatibility.set(this, void 0);
         _SharedRequirePluginModule_requireFunction.set(this, void 0);
-        __classPrivateFieldSet(this, _SharedRequirePluginModule_requireFunction, requireFunction, "f");
-        __classPrivateFieldSet(this, _SharedRequirePluginModule_compatibility, compatability, "f");
+        _SharedRequirePluginModule_logMissingShares.set(this, void 0);
+        __classPrivateFieldSet(this, _SharedRequirePluginModule_requireFunction, options.globalModulesRequire, "f");
+        __classPrivateFieldSet(this, _SharedRequirePluginModule_compatibility, options.compatibility, "f");
+        __classPrivateFieldSet(this, _SharedRequirePluginModule_logMissingShares, options.logMissingShares, "f");
     }
     shouldIsolate() {
         return true;
@@ -84,13 +86,23 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         ])});`);
         buf.push(`${webpack_1.RuntimeGlobals.global}.${__classPrivateFieldGet(this, _SharedRequirePluginModule_requireFunction, "f")} = function (moduleId)`);
         buf.push("{");
-        buf.push(webpack_1.Template.indent(`const moduleGen	= loadSingleton("global", moduleId);`));
-        buf.push(webpack_1.Template.indent(`if (!moduleGen)`));
+        buf.push(webpack_1.Template.indent(`try`));
         buf.push(webpack_1.Template.indent(`{`));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return {}`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`const moduleGen	= loadSingleton("global", moduleId);`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`if (!moduleGen)`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`{`)));
+        if (__classPrivateFieldGet(this, _SharedRequirePluginModule_logMissingShares, "f"))
+            buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`))));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`return null;`))));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`}`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return moduleGen()`)));
         buf.push(webpack_1.Template.indent(`}`));
-        buf.push(webpack_1.Template.indent(`return moduleGen()`));
+        buf.push(webpack_1.Template.indent(`catch (error)`));
+        buf.push(webpack_1.Template.indent(`{`));
+        if (__classPrivateFieldGet(this, _SharedRequirePluginModule_logMissingShares, "f"))
+            buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return null;`)));
+        buf.push(webpack_1.Template.indent(`}`));
         buf.push("}");
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_compatibility, "f")) {
             buf.push("");
@@ -131,4 +143,4 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
     }
 }
 exports.SharedRequirePluginModule = SharedRequirePluginModule;
-_SharedRequirePluginModule_compatibility = new WeakMap(), _SharedRequirePluginModule_requireFunction = new WeakMap();
+_SharedRequirePluginModule_compatibility = new WeakMap(), _SharedRequirePluginModule_requireFunction = new WeakMap(), _SharedRequirePluginModule_logMissingShares = new WeakMap();

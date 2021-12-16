@@ -45,7 +45,8 @@ export default class SharedRequirePlugin
         const defaultOptions =
         {
             globalModulesRequire:   "requireSharedModule",
-            compatibility:          false
+            compatibility:          false,
+            logMissingShares:       true
         };
 
         this.options        = Object.assign(defaultOptions, userOptions);
@@ -101,7 +102,7 @@ export default class SharedRequirePlugin
                         if (this.options.compatibility)
                             runtimeRequirements.add(RuntimeGlobals.moduleCache);
 
-                        compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+                        compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options));
                     }
 
                     return true;
@@ -215,6 +216,7 @@ interface SharedRequirePluginOptions
     externalModules?:Array<string>;  // List of external modules that are provided by the provider application
     globalModulesRequire:string;     // Global require method name
     compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
+    logMissingShares:boolean;       // Log Missing Share warnings to console.
 }
 
 module.exports = SharedRequirePlugin;

@@ -41,7 +41,8 @@ class SharedRequirePlugin {
         const userOptions = options || {};
         const defaultOptions = {
             globalModulesRequire: "requireSharedModule",
-            compatibility: false
+            compatibility: false,
+            logMissingShares: true
         };
         this.options = Object.assign(defaultOptions, userOptions);
     }
@@ -80,7 +81,7 @@ class SharedRequirePlugin {
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.initializeSharing);
                     if (this.options.compatibility)
                         runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleCache);
-                    compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
+                    compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options));
                 }
                 return true;
             });

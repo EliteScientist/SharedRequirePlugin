@@ -6,12 +6,14 @@ export class SharedRequirePluginModule
 {
 	#compatibility:boolean;
 	#requireFunction:string;
+	#logMissingShares:boolean;
 
-	constructor(requireFunction:string, compatability:boolean = false) 
+	constructor(options:any) //requireFunction:string, compatability:boolean = false)
 	{
 		super("SharedRequirePlugin", RuntimeModule.STAGE_ATTACH);
-		this.#requireFunction	= requireFunction;
-		this.#compatibility		= compatability;
+		this.#requireFunction	= options.globalModulesRequire;
+		this.#compatibility		= options.compatibility;
+		this.#logMissingShares	= options.logMissingShares;
 	}
 
 	public shouldIsolate():boolean {
@@ -64,7 +66,7 @@ export class SharedRequirePluginModule
 				"}"
 			]),
 			"fn"
-		)};`)
+		)};`);
 
 		// Find Singleton Version
 		buf.push(`const findSingletonVersionKey = ${runtimeTemplate.basicFunction(
@@ -89,7 +91,7 @@ export class SharedRequirePluginModule
 
 				"return get(scope[key][version]);"
 			]
-		)};`)
+		)};`);
 
 		// Load Singleton
 		buf.push(`const loadSingleton = /*#__PURE__*/ init(${runtimeTemplate.basicFunction(
@@ -98,7 +100,7 @@ export class SharedRequirePluginModule
 				"ensureExistence(scopeName, key);",
 				"return getSingletonVersion(scope, scopeName, key);"
 			]
-		)});`)
+		)});`);
 
 		// Load Singleton Version
 		buf.push(`const loadSingletonVersionCheck = /*#__PURE__*/ init(${runtimeTemplate.basicFunction(
@@ -107,17 +109,31 @@ export class SharedRequirePluginModule
 				"ensureExistence(scopeName, key);",
 				"return getSingletonVersion(scope, scopeName, key, version);"
 			]
-		)});`)
+		)});`);
 		
 		buf.push(`${RuntimeGlobals.global}.${this.#requireFunction} = function (moduleId)`);
 		buf.push("{");
-		buf.push(Template.indent(`const moduleGen	= loadSingleton("global", moduleId);`));
-		buf.push(Template.indent(`if (!moduleGen)`));
+		buf.push(Template.indent(`try`));
 		buf.push(Template.indent(`{`));
-		buf.push(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
-		buf.push(Template.indent(Template.indent(`return {}`)));
+		buf.push(Template.indent(Template.indent(`const moduleGen	= loadSingleton("global", moduleId);`)));
+		buf.push(Template.indent(Template.indent(`if (!moduleGen)`)));
+		buf.push(Template.indent(Template.indent(`{`)));
+
+		if (this.#logMissingShares)
+			buf.push(Template.indent(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`))));
+
+		buf.push(Template.indent(Template.indent(Template.indent(`return null;`))));
+		buf.push(Template.indent(Template.indent(`}`)));
+		buf.push(Template.indent(Template.indent(`return moduleGen()`)));
 		buf.push(Template.indent(`}`));
-		buf.push(Template.indent(`return moduleGen()`));
+		buf.push(Template.indent(`catch (error)`));
+		buf.push(Template.indent(`{`));
+
+		if (this.#logMissingShares)
+			buf.push(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
+
+		buf.push(Template.indent(Template.indent(`return null;`)));
+		buf.push(Template.indent(`}`));
 		buf.push("}");
 
 		if (this.#compatibility)
