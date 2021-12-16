@@ -10,15 +10,21 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 > ### ProjectA - Contains JQuery - 
 > webpack.config.js
 ``` javascript
-var SharedRequirePlugin = require("sharedrequireplugin");
+const SharedRequirePlugin = require("sharedrequireplugin");
 module.exports = {
     entry: "...",
     output: {..},
     resolve: {...},
     module: {...},
     plugins: [
-		new SharedRequirePlugin({provider: true}),
-        ...
+		new SharedRequirePlugin({
+			provides: {
+				"@polymer/polymer": { eager: true },
+				"jquery": { eager: true },
+				
+				...
+			}
+		}),
     ]
 };
 ```
@@ -26,20 +32,29 @@ module.exports = {
 > ### ProjectB - Uses JQuery - 
 > webpack.config.js
 ``` javascript
-var SharedRequirePlugin = require("sharedrequireplugin");
+const SharedRequirePlugin = require("sharedrequireplugin");
 module.exports = {
     entry: "...",
     output: {..},
     resolve: {...},
     module: {...},
     plugins: [
-		new SharedRequirePlugin({externalModules: ["jquery"]}),
+		new SharedRequirePlugin({
+			externalModules: [
+				/\@polymer\/polymer/g,
+				"jquery"
+			]
+		}),
         ...
     ]
 };
 ```
 
+externalModules now support regex expressions.
+
 This will reduce the size of ProjectB's JS file.
 Ensure ProjectA is loaded before ProjectB attempts to use the jquery library.
 
 If ProjectA has not been loaded then a the require("jquery") call in ProjectB will return null.
+
+This component uses the internal ProvideSharedPlugin to enter shared modules into webpack's shared space, then provides a mechanism for accessing these shared modules globally.

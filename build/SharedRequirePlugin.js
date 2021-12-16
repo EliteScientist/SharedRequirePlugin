@@ -30,6 +30,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const SharedRequirePluginModule_1 = require("./SharedRequirePluginModule");
 const webpack_1 = require("webpack");
 const RawModule_1 = __importDefault(require("webpack/lib/RawModule"));
+const ProvideSharedPlugin_1 = __importDefault(require("webpack/lib/sharing/ProvideSharedPlugin"));
 const pluginName = "SharedRequirePlugin";
 class SharedRequirePlugin {
     /**
@@ -39,8 +40,6 @@ class SharedRequirePlugin {
     constructor(options) {
         const userOptions = options || {};
         const defaultOptions = {
-            provider: false,
-            externalModules: [],
             globalModulesRequire: "requireSharedModule",
             compatibility: false
         };
@@ -52,6 +51,20 @@ class SharedRequirePlugin {
      */
     apply(compiler) {
         // Begin Compilation
+        if (this.options.provides) {
+            const provides = {};
+            for (let packageName in this.options.provides) {
+                const specs = this.options.provides[packageName];
+                if (!specs.shareKey)
+                    specs.shareKey = packageName;
+                specs.eager = true;
+                provides[packageName] = specs;
+            }
+            new ProvideSharedPlugin_1.default({
+                provides: provides,
+                shareScope: "global"
+            }).apply(compiler);
+        }
         // Configure Compiler
         compiler.hooks.compilation.tap(pluginName, (compilation) => {
             // Add Global Shared Requre to template
@@ -60,39 +73,36 @@ class SharedRequirePlugin {
                 .tap(pluginName, (chunk, runtimeRequirements) => {
                 // We will always need global available for providing and consuming
                 runtimeRequirements.add(webpack_1.RuntimeGlobals.global);
-                if (this.options.provider) {
+                if (this.options.provides) {
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.startupOnlyBefore);
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.require);
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.shareScopeMap);
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.initializeSharing);
                     if (this.options.compatibility)
-                        runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleFactories);
+                        runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleCache);
                     compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
                 }
                 return true;
             });
-            if (this.options.provider) {
+            if (this.options.provides) {
                 // Modify Module IDs to be requested id -- provider only. to make modules accessible by requested name
                 compilation.hooks.moduleIds.tap(pluginName, (modules) => {
                     modules.forEach((mod) => {
-                        if ("rawRequest" in mod) {
-                            const request = mod.rawRequest;
+                        var _a, _b;
+                        const request = (_a = mod === null || mod === void 0 ? void 0 : mod.rawRequest) !== null && _a !== void 0 ? _a : (_b = mod.rootModule) === null || _b === void 0 ? void 0 : _b.rawRequest;
+                        if (request in this.options.provides)
                             this.processModuleId(mod, request, compilation);
-                        }
-                        else if ("rootModule" in mod) // Concatenated Module
-                         {
-                            const request = mod.rootModule.rawRequest;
-                            this.processModuleId(mod, request, compilation);
-                        }
                     });
                 });
             }
         });
         // Consumer
-        if (!this.options.provider && this.options.externalModules && this.options.externalModules.length > 0) {
+        if (this.options.consumes || this.options.externalModules) {
             // Module Consumer
             // Get Module Factory
             compiler.hooks.normalModuleFactory.tap(pluginName, (factory) => {
                 // Configure Resolver to resolve external modules
-                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this, webpack_1.Compilation));
+                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this));
             });
         }
     }
@@ -108,8 +118,16 @@ class SharedRequirePlugin {
             return;
         compilation.chunkGraph.setModuleId(mod, request);
     }
-    resolveModule(compilation, data, callback) {
-        if (this.options.externalModules != null && this.options.externalModules.length > 0) {
+    resolveModule(data, callback) {
+        if (this.options.consumes && data.request in this.options.consumes) {
+            const runtimeRequirements = new Set([
+                webpack_1.RuntimeGlobals.module,
+                webpack_1.RuntimeGlobals.require,
+                webpack_1.RuntimeGlobals.global
+            ]);
+            return new RawModule_1.default(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);
+        }
+        else if (this.options.externalModules != null && this.options.externalModules.length > 0) {
             for (let i = 0; i < this.options.externalModules.length; i++) {
                 let moduleName = this.options.externalModules[i];
                 if (typeof moduleName === "string")
@@ -128,18 +146,7 @@ class SharedRequirePlugin {
     getSource(request) {
         let req = JSON.stringify(request);
         const buf = [];
-        //buf.push("(module, exports) =>")
-        //buf.push("{");
-        buf.push(webpack_1.Template.indent("try"));
-        buf.push(webpack_1.Template.indent("{"));
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`module.exports = ${webpack_1.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
-        buf.push(webpack_1.Template.indent("}"));
-        buf.push(webpack_1.Template.indent("catch (error)"));
-        buf.push(webpack_1.Template.indent("{"));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent("module.exports = null; // Shared System/Module not available")));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`)));
-        buf.push(webpack_1.Template.indent("}"));
-        //buf.push("}");
         return webpack_1.Template.asString(buf);
     }
 }

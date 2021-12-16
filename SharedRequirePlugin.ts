@@ -26,6 +26,7 @@
 import {SharedRequirePluginModule} from "./SharedRequirePluginModule";
 import {Template, RuntimeGlobals, Module, Compilation} from "webpack";
 import RawModule from "webpack/lib/RawModule";
+import ProvideSharedPlugin from "webpack/lib/sharing/ProvideSharedPlugin";
 
 const pluginName	= "SharedRequirePlugin";
 
@@ -43,8 +44,6 @@ export default class SharedRequirePlugin
 
         const defaultOptions =
         {
-            provider:               false,
-            externalModules:        [],
             globalModulesRequire:   "requireSharedModule",
             compatibility:          false
         };
@@ -59,6 +58,27 @@ export default class SharedRequirePlugin
     apply (compiler):void
     {
         // Begin Compilation
+        if (this.options.provides)
+        {
+            const provides  = {};
+
+            for (let packageName in this.options.provides)
+            {
+                const specs = this.options.provides[packageName];
+
+                if (!specs.shareKey)
+                    specs.shareKey  = packageName;
+
+                specs.eager = true;
+
+                provides[packageName]    = specs;
+            }
+
+            new ProvideSharedPlugin({
+                provides: provides,
+                shareScope: "global"
+            }).apply(compiler);
+        }
 
         // Configure Compiler
         compiler.hooks.compilation.tap(pluginName, (compilation) =>
@@ -71,13 +91,15 @@ export default class SharedRequirePlugin
                     // We will always need global available for providing and consuming
                     runtimeRequirements.add(RuntimeGlobals.global);
 
-                    if (this.options.provider)
+                    if (this.options.provides)
                     {
                         runtimeRequirements.add(RuntimeGlobals.startupOnlyBefore);
                         runtimeRequirements.add(RuntimeGlobals.require);
+                        runtimeRequirements.add(RuntimeGlobals.shareScopeMap);
+                        runtimeRequirements.add(RuntimeGlobals.initializeSharing);
 
                         if (this.options.compatibility)
-                            runtimeRequirements.add(RuntimeGlobals.moduleFactories);
+                            runtimeRequirements.add(RuntimeGlobals.moduleCache);
 
                         compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options.globalModulesRequire, this.options.compatibility));
                     }
@@ -86,38 +108,32 @@ export default class SharedRequirePlugin
                 }
             );
             
-            if (this.options.provider)
+            if (this.options.provides)
             {
                 // Modify Module IDs to be requested id -- provider only. to make modules accessible by requested name
                 compilation.hooks.moduleIds.tap(pluginName, (modules) =>
                 {
                     modules.forEach((mod) =>
                     {
-                        if ("rawRequest" in mod) 
-                        {
-                            const request = mod.rawRequest;
+                        const request = mod?.rawRequest ?? mod.rootModule?.rawRequest;
+
+                        if (request in this.options.provides)
                             this.processModuleId(mod, request, compilation);
-                        }
-                        else
-                        if ("rootModule" in mod) // Concatenated Module
-                        {
-                            const request = mod.rootModule.rawRequest;
-                            this.processModuleId(mod, request, compilation);
-                        }
                     });
                 });
             }
+
         });
       
         // Consumer
-        if (!this.options.provider && this.options.externalModules && this.options.externalModules.length > 0)
+        if (this.options.consumes || this.options.externalModules)
         {
             // Module Consumer
             // Get Module Factory
             compiler.hooks.normalModuleFactory.tap(pluginName, (factory) =>
             {
                 // Configure Resolver to resolve external modules
-                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this, Compilation));
+                factory.hooks.resolve.tap(pluginName, this.resolveModule.bind(this));
             });
         }
     }
@@ -141,8 +157,19 @@ export default class SharedRequirePlugin
         compilation.chunkGraph.setModuleId(mod, request);
 	}
 	
-    resolveModule(compilation:Compilation, data:any, callback: Function):Module | boolean | undefined
+    resolveModule(data:any, callback: Function):Module | boolean | undefined
     {
+        if (this.options.consumes && data.request in this.options.consumes)
+        {
+            const runtimeRequirements    = new Set([
+                RuntimeGlobals.module,
+                RuntimeGlobals.require,
+                RuntimeGlobals.global
+            ]);
+
+            return new RawModule(this.getSource(data.request), `External::${data.request}`, data.request, runtimeRequirements);
+        }
+        else
         if (this.options.externalModules != null && this.options.externalModules.length > 0)
         {
             for (let i:number = 0; i < this.options.externalModules.length; i++)
@@ -172,18 +199,8 @@ export default class SharedRequirePlugin
 		
 		const buf = [];
 		
-        //buf.push("(module, exports) =>")
-        //buf.push("{");
-		buf.push(Template.indent("try"));
-		buf.push(Template.indent("{"));
         buf.push(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
-        buf.push(Template.indent("}"));
-		buf.push(Template.indent("catch (error)"));
-		buf.push(Template.indent("{"));
-		buf.push(Template.indent(Template.indent("module.exports = null; // Shared System/Module not available")));
-		buf.push(Template.indent(Template.indent(`console.warn('Request for shared module: ${req} - Not available.');`)));
-		buf.push(Template.indent("}"));
-        //buf.push("}");
+        
         return Template.asString(buf);
     }
 }
@@ -193,8 +210,9 @@ export default class SharedRequirePlugin
  */
 interface SharedRequirePluginOptions
 {
-    provider:Boolean;               // True if this project provides libraries to loaded applications and libraries
-    externalModules:Array<string>;  // List of external modules that are provided by the provider application
+    provides?:{[key:string]: {eager?:boolean, shareKey?:string, version?:string}};
+    consumes?:{[key:string]: {eager?:boolean}};
+    externalModules?:Array<string>;  // List of external modules that are provided by the provider application
     globalModulesRequire:string;     // Global require method name
     compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
 }

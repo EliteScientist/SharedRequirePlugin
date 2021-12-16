@@ -14,6 +14,7 @@ var _SharedRequirePluginModule_compatibility, _SharedRequirePluginModule_require
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SharedRequirePluginModule = void 0;
 const webpack_1 = require("webpack");
+const semver_1 = require("webpack/lib/util/semver");
 class SharedRequirePluginModule extends webpack_1.RuntimeModule {
     constructor(requireFunction, compatability = false) {
         super("SharedRequirePlugin", webpack_1.RuntimeModule.STAGE_ATTACH);
@@ -26,11 +27,70 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         return true;
     }
     generate() {
-        const buf = [];
+        const { compilation } = this;
+        const { runtimeTemplate } = compilation;
+        const buf = [
+            (0, semver_1.satisfyRuntimeCode)(runtimeTemplate)
+        ];
         buf.push("// Shared-Require Global Module Provider Function");
+        buf.push("// Initialize Sharing Scope");
+        buf.push(`${webpack_1.RuntimeGlobals.initializeSharing}("global");`);
+        // Trace Error
+        buf.push(`const getInvalidSingletonVersionMessage = ${runtimeTemplate.basicFunction("key, version, requiredVersion", [
+            `return "Unsatisfied version " + version + " of shared singleton module " + key + " (required " + rangeToString(requiredVersion) + ")"`
+        ])};`);
+        // Ensure Existence
+        buf.push(`const ensureExistence = ${runtimeTemplate.basicFunction("scopeName, key", [
+            `const scope = ${webpack_1.RuntimeGlobals.shareScopeMap}[scopeName];`,
+            `if(!scope || !${webpack_1.RuntimeGlobals.hasOwnProperty}(scope, key)) throw new Error("Shared module " + key + " doesn't exist in shared scope " + scopeName);`,
+            "return scope;"
+        ])};`);
+        // Get Entry
+        buf.push(`const get = ${runtimeTemplate.basicFunction("entry", [
+            "entry.loaded = 1;",
+            "return entry.get()"
+        ])};`);
+        // Init
+        buf.push(`const init = ${runtimeTemplate.returningFunction(webpack_1.Template.asString([
+            "function(scopeName, a, b, c) {",
+            webpack_1.Template.indent([
+                `const promise = ${webpack_1.RuntimeGlobals.initializeSharing}(scopeName);`,
+                `if (promise && promise.then) return promise.then(fn.bind(fn, scopeName, ${webpack_1.RuntimeGlobals.shareScopeMap}[scopeName], a, b, c));`,
+                `return fn(scopeName, ${webpack_1.RuntimeGlobals.shareScopeMap}[scopeName], a, b, c);`
+            ]),
+            "}"
+        ]), "fn")};`);
+        // Find Singleton Version
+        buf.push(`const findSingletonVersionKey = ${runtimeTemplate.basicFunction("scope, key", [
+            "const versions = scope[key];",
+            `return Object.keys(versions).reduce(${runtimeTemplate.basicFunction("a, b", ["return !a || (!versions[a].loaded && versionLt(a, b)) ? b : a;"])}, 0);`
+        ])};`);
+        // Get Singleton Version
+        buf.push(`const getSingletonVersion = ${runtimeTemplate.basicFunction("scope, scopeName, key, requiredVersion", [
+            "const version = findSingletonVersionKey(scope, key);",
+            "if (requiredVersion &&!satisfy(requiredVersion, version)) " +
+                'typeof console !== "undefined" && console.warn && console.warn(getInvalidSingletonVersionMessage(key, version, requiredVersion));',
+            "return get(scope[key][version]);"
+        ])};`);
+        // Load Singleton
+        buf.push(`const loadSingleton = /*#__PURE__*/ init(${runtimeTemplate.basicFunction("scopeName, scope, key", [
+            "ensureExistence(scopeName, key);",
+            "return getSingletonVersion(scope, scopeName, key);"
+        ])});`);
+        // Load Singleton Version
+        buf.push(`const loadSingletonVersionCheck = /*#__PURE__*/ init(${runtimeTemplate.basicFunction("scopeName, scape, key, version", [
+            "ensureExistence(scopeName, key);",
+            "return getSingletonVersion(scope, scopeName, key, version);"
+        ])});`);
         buf.push(`${webpack_1.RuntimeGlobals.global}.${__classPrivateFieldGet(this, _SharedRequirePluginModule_requireFunction, "f")} = function (moduleId)`);
         buf.push("{");
-        buf.push(webpack_1.Template.indent(`return ${webpack_1.RuntimeGlobals.require}(moduleId);`));
+        buf.push(webpack_1.Template.indent(`const moduleGen	= loadSingleton("global", moduleId);`));
+        buf.push(webpack_1.Template.indent(`if (!moduleGen)`));
+        buf.push(webpack_1.Template.indent(`{`));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return {}`)));
+        buf.push(webpack_1.Template.indent(`}`));
+        buf.push(webpack_1.Template.indent(`return moduleGen()`));
         buf.push("}");
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_compatibility, "f")) {
             buf.push("");
@@ -42,12 +102,12 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
                 "{",
                 webpack_1.Template.indent(`if (!${webpack_1.RuntimeGlobals.global}._globalSharedModules)`),
                 webpack_1.Template.indent("{"),
-                webpack_1.Template.indent(webpack_1.Template.indent(`${webpack_1.RuntimeGlobals.global}._globalSharedModules	= new Proxy(${webpack_1.RuntimeGlobals.moduleFactories},`)),
+                webpack_1.Template.indent(webpack_1.Template.indent(`${webpack_1.RuntimeGlobals.global}._globalSharedModules	= new Proxy(${webpack_1.RuntimeGlobals.moduleCache},`)),
                 webpack_1.Template.indent(webpack_1.Template.indent("{")),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("get: function (target, prop, receiver)"))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("{"))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("if (isNaN(prop))")))),
-                webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return target[prop];"))))),
+                webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return target[prop]?.exports;"))))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("")))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return null;")))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("},"))),
