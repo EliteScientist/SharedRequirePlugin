@@ -1,6 +1,6 @@
 {
 	"name": "sharedrequireplugin",
-	"version": "2.0.5",
+	"version": "2.0.6",
 	"description": "Webpack 5.x Shared Require Plugin",
 	"main": "build/SharedRequirePlugin.js",
 	"author": "Michael Rochelle",
@@ -22,7 +22,7 @@
 		"file-loader": "^6.2.0",
 		"standard-version": "8.0.1",
 		"ts-node": "^10.3.0",
-		"typescript": "4.4.4",
+		"typescript": "^4.8.4",
 		"webpack": "^5.65.0"
 	},
 	"dependencies": {
