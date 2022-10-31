@@ -10,7 +10,7 @@ var __classPrivateFieldGet = (this && this.__classPrivateFieldGet) || function (
     if (typeof state === "function" ? receiver !== state || !f : !state.has(receiver)) throw new TypeError("Cannot read private member from an object whose class did not declare it");
     return kind === "m" ? f : kind === "a" ? f.call(receiver) : f ? f.value : state.get(receiver);
 };
-var _SharedRequirePluginModule_compatibility, _SharedRequirePluginModule_requireFunction, _SharedRequirePluginModule_logMissingShares;
+var _SharedRequirePluginModule_compatibility, _SharedRequirePluginModule_requireFunction, _SharedRequirePluginModule_registerFunction, _SharedRequirePluginModule_logMissingShares;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SharedRequirePluginModule = void 0;
 const webpack_1 = require("webpack");
@@ -20,8 +20,10 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         super("SharedRequirePlugin", webpack_1.RuntimeModule.STAGE_ATTACH);
         _SharedRequirePluginModule_compatibility.set(this, void 0);
         _SharedRequirePluginModule_requireFunction.set(this, void 0);
+        _SharedRequirePluginModule_registerFunction.set(this, void 0);
         _SharedRequirePluginModule_logMissingShares.set(this, void 0);
         __classPrivateFieldSet(this, _SharedRequirePluginModule_requireFunction, options.globalModulesRequire, "f");
+        __classPrivateFieldSet(this, _SharedRequirePluginModule_registerFunction, options.globalModulesRegister, "f");
         __classPrivateFieldSet(this, _SharedRequirePluginModule_compatibility, options.compatibility, "f");
         __classPrivateFieldSet(this, _SharedRequirePluginModule_logMissingShares, options.logMissingShares, "f");
     }
@@ -84,7 +86,7 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
             "ensureExistence(scopeName, key);",
             "return getSingletonVersion(scope, scopeName, key, version);"
         ])});`);
-        buf.push(`${webpack_1.RuntimeGlobals.global}.${__classPrivateFieldGet(this, _SharedRequirePluginModule_requireFunction, "f")} = function (moduleId)`);
+        buf.push(`${webpack_1.RuntimeGlobals.global}.${__classPrivateFieldGet(this, _SharedRequirePluginModule_requireFunction, "f")} = (moduleId) =>`);
         buf.push("{");
         buf.push(webpack_1.Template.indent(`try`));
         buf.push(webpack_1.Template.indent(`{`));
@@ -104,6 +106,37 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return null;`)));
         buf.push(webpack_1.Template.indent(`}`));
         buf.push("}");
+        if (__classPrivateFieldGet(this, _SharedRequirePluginModule_registerFunction, "f")) {
+            buf.push(`${webpack_1.RuntimeGlobals.global}.${__classPrivateFieldGet(this, _SharedRequirePluginModule_registerFunction, "f")} = (moduleId, module) =>
+			{
+				// Inject module into module cache
+				if (Object.hasOwn(${webpack_1.RuntimeGlobals.moduleCache}, moduleId))
+					console.warn("Module: '" + moduleId + "' already exists in cache");
+
+				${webpack_1.RuntimeGlobals.moduleCache}[moduleId] = {
+					id: moduleId,
+					exports: module,
+					loaded: true
+				};
+
+				// Register module in shared scope
+				const scope = ${webpack_1.RuntimeGlobals.shareScopeMap}["global"];
+
+				if (!scope)
+				{
+					console.warn("Cannot Register '" + moduleId + "': Global scope not found");
+					return;
+				}
+
+				scope[moduleId] = {
+					"0.0.0": {
+						from: "runtime",
+						eager: true,
+						get: () => (() => ${webpack_1.RuntimeGlobals.require}(moduleId))
+					}
+				};
+			}`);
+        }
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_compatibility, "f")) {
             buf.push("");
             buf.push("// Shared-Require Backwards Compatiblity");
@@ -143,4 +176,4 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
     }
 }
 exports.SharedRequirePluginModule = SharedRequirePluginModule;
-_SharedRequirePluginModule_compatibility = new WeakMap(), _SharedRequirePluginModule_requireFunction = new WeakMap(), _SharedRequirePluginModule_logMissingShares = new WeakMap();
+_SharedRequirePluginModule_compatibility = new WeakMap(), _SharedRequirePluginModule_requireFunction = new WeakMap(), _SharedRequirePluginModule_registerFunction = new WeakMap(), _SharedRequirePluginModule_logMissingShares = new WeakMap();

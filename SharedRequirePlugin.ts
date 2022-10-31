@@ -44,9 +44,10 @@ export default class SharedRequirePlugin
 
         const defaultOptions =
         {
-            globalModulesRequire:   "requireSharedModule",
-            compatibility:          false,
-            logMissingShares:       true
+            globalModulesRequire:	"requireSharedModule",
+			globalModulesRegister:	"registerSharedModule",
+            compatibility:			false,
+            logMissingShares:		true
         };
 
         this.options        = Object.assign(defaultOptions, userOptions);
@@ -98,9 +99,7 @@ export default class SharedRequirePlugin
                         runtimeRequirements.add(RuntimeGlobals.require);
                         runtimeRequirements.add(RuntimeGlobals.shareScopeMap);
                         runtimeRequirements.add(RuntimeGlobals.initializeSharing);
-
-                        if (this.options.compatibility)
-                            runtimeRequirements.add(RuntimeGlobals.moduleCache);
+                        runtimeRequirements.add(RuntimeGlobals.moduleCache);
 
                         compilation.addRuntimeModule(chunk, new SharedRequirePluginModule(this.options));
                     }
@@ -160,7 +159,11 @@ export default class SharedRequirePlugin
 	
     resolveModule(data:any, callback: Function):Module | boolean | undefined
     {
-        if (this.options.consumes && data.request in this.options.consumes)
+        if (
+			(this.options.consumes && data.request in this.options.consumes) ||
+			(this.options.externalModulePrefixes
+				&& this.options.externalModulePrefixes.some((prefix) => String(data.request).startsWith(prefix)))
+		)
         {
             const runtimeRequirements    = new Set([
                 RuntimeGlobals.module,
@@ -213,8 +216,10 @@ interface SharedRequirePluginOptions
 {
     provides?:{[key:string]: {eager?:boolean, shareKey?:string, version?:string}};
     consumes?:{[key:string]: {eager?:boolean}};
-    externalModules?:Array<string>;  // List of external modules that are provided by the provider application
-    globalModulesRequire:string;     // Global require method name
+    externalModules?:Array<string>;	// List of external modules that are provided by the provider application
+    globalModulesRequire:string;	// Global require method name
+	globalModulesRegister:string;	// Global Method to register modules
+	externalModulePrefixes:string[];// Assume all modules with this prefix are shared
     compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
     logMissingShares:boolean;       // Log Missing Share warnings to console.
 }

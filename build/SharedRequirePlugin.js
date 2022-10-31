@@ -41,6 +41,7 @@ class SharedRequirePlugin {
         const userOptions = options || {};
         const defaultOptions = {
             globalModulesRequire: "requireSharedModule",
+            globalModulesRegister: "registerSharedModule",
             compatibility: false,
             logMissingShares: true
         };
@@ -79,8 +80,7 @@ class SharedRequirePlugin {
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.require);
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.shareScopeMap);
                     runtimeRequirements.add(webpack_1.RuntimeGlobals.initializeSharing);
-                    if (this.options.compatibility)
-                        runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleCache);
+                    runtimeRequirements.add(webpack_1.RuntimeGlobals.moduleCache);
                     compilation.addRuntimeModule(chunk, new SharedRequirePluginModule_1.SharedRequirePluginModule(this.options));
                 }
                 return true;
@@ -120,7 +120,9 @@ class SharedRequirePlugin {
         compilation.chunkGraph.setModuleId(mod, request);
     }
     resolveModule(data, callback) {
-        if (this.options.consumes && data.request in this.options.consumes) {
+        if ((this.options.consumes && data.request in this.options.consumes) ||
+            (this.options.externalModulePrefixes
+                && this.options.externalModulePrefixes.some((prefix) => String(data.request).startsWith(prefix)))) {
             const runtimeRequirements = new Set([
                 webpack_1.RuntimeGlobals.module,
                 webpack_1.RuntimeGlobals.require,

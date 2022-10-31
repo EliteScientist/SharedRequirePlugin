@@ -6,12 +6,14 @@ export class SharedRequirePluginModule
 {
 	#compatibility:boolean;
 	#requireFunction:string;
+	#registerFunction:string;
 	#logMissingShares:boolean;
 
 	constructor(options:any) //requireFunction:string, compatability:boolean = false)
 	{
 		super("SharedRequirePlugin", RuntimeModule.STAGE_ATTACH);
 		this.#requireFunction	= options.globalModulesRequire;
+		this.#registerFunction	= options.globalModulesRegister;
 		this.#compatibility		= options.compatibility;
 		this.#logMissingShares	= options.logMissingShares;
 	}
@@ -111,7 +113,7 @@ export class SharedRequirePluginModule
 			]
 		)});`);
 		
-		buf.push(`${RuntimeGlobals.global}.${this.#requireFunction} = function (moduleId)`);
+		buf.push(`${RuntimeGlobals.global}.${this.#requireFunction} = (moduleId) =>`);
 		buf.push("{");
 		buf.push(Template.indent(`try`));
 		buf.push(Template.indent(`{`));
@@ -135,6 +137,39 @@ export class SharedRequirePluginModule
 		buf.push(Template.indent(Template.indent(`return null;`)));
 		buf.push(Template.indent(`}`));
 		buf.push("}");
+
+		if (this.#registerFunction)
+		{
+			buf.push(`${RuntimeGlobals.global}.${this.#registerFunction} = (moduleId, module) =>
+			{
+				// Inject module into module cache
+				if (Object.hasOwn(${RuntimeGlobals.moduleCache}, moduleId))
+					console.warn("Module: '" + moduleId + "' already exists in cache");
+
+				${RuntimeGlobals.moduleCache}[moduleId] = {
+					id: moduleId,
+					exports: module,
+					loaded: true
+				};
+
+				// Register module in shared scope
+				const scope = ${RuntimeGlobals.shareScopeMap}["global"];
+
+				if (!scope)
+				{
+					console.warn("Cannot Register '" + moduleId + "': Global scope not found");
+					return;
+				}
+
+				scope[moduleId] = {
+					"0.0.0": {
+						from: "runtime",
+						eager: true,
+						get: () => (() => ${RuntimeGlobals.require}(moduleId))
+					}
+				};
+			}`);
+		}
 
 		if (this.#compatibility)
 		{
