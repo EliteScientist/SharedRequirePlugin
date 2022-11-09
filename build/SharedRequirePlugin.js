@@ -55,12 +55,24 @@ class SharedRequirePlugin {
         // Begin Compilation
         if (this.options.provides) {
             const provides = {};
-            for (let packageName in this.options.provides) {
+            // Provides
+            for (const packageName in this.options.provides) {
                 const specs = this.options.provides[packageName];
                 if (!specs.shareKey)
                     specs.shareKey = packageName;
                 specs.eager = true;
                 provides[packageName] = specs;
+            }
+            // Modules
+            for (const moduleName in this.options.modules) {
+                const mod = this.options.modules[moduleName];
+                for (const packageName in mod) {
+                    const specs = mod[packageName];
+                    if (!specs.shareKey)
+                        specs.shareKey = packageName;
+                    specs.eager = true;
+                    provides[packageName] = specs;
+                }
             }
             new ProvideSharedPlugin_1.default({
                 provides: provides,

@@ -1,21 +1,16 @@
 import {Template, RuntimeModule, RuntimeGlobals} from "webpack";
 import {satisfyRuntimeCode} from "webpack/lib/util/semver";
+import type { SharedRequirePluginOptions } from "./SharedRequirePlugin";
 
 export class SharedRequirePluginModule
 	extends RuntimeModule
 {
-	#compatibility:boolean;
-	#requireFunction:string;
-	#registerFunction:string;
-	#logMissingShares:boolean;
+	#options: SharedRequirePluginOptions;
 
-	constructor(options:any) //requireFunction:string, compatability:boolean = false)
+	constructor(options: SharedRequirePluginOptions) //requireFunction:string, compatability:boolean = false)
 	{
 		super("SharedRequirePlugin", RuntimeModule.STAGE_ATTACH);
-		this.#requireFunction	= options.globalModulesRequire;
-		this.#registerFunction	= options.globalModulesRegister;
-		this.#compatibility		= options.compatibility;
-		this.#logMissingShares	= options.logMissingShares;
+		this.#options = options;		
 	}
 
 	public shouldIsolate():boolean {
@@ -106,14 +101,14 @@ export class SharedRequirePluginModule
 
 		// Load Singleton Version
 		buf.push(`const loadSingletonVersionCheck = /*#__PURE__*/ init(${runtimeTemplate.basicFunction(
-			"scopeName, scape, key, version",
+			"scopeName, scope, key, version",
 			[
 				"ensureExistence(scopeName, key);",
 				"return getSingletonVersion(scope, scopeName, key, version);"
 			]
 		)});`);
 		
-		buf.push(`${RuntimeGlobals.global}.${this.#requireFunction} = (moduleId) =>`);
+		buf.push(`${RuntimeGlobals.global}.${this.#options.globalModulesRequire} = (moduleId) =>`);
 		buf.push("{");
 		buf.push(Template.indent(`try`));
 		buf.push(Template.indent(`{`));
@@ -121,7 +116,7 @@ export class SharedRequirePluginModule
 		buf.push(Template.indent(Template.indent(`if (!moduleGen)`)));
 		buf.push(Template.indent(Template.indent(`{`)));
 
-		if (this.#logMissingShares)
+		if (this.#options.logMissingShares)
 			buf.push(Template.indent(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`))));
 
 		buf.push(Template.indent(Template.indent(Template.indent(`return null;`))));
@@ -131,16 +126,16 @@ export class SharedRequirePluginModule
 		buf.push(Template.indent(`catch (error)`));
 		buf.push(Template.indent(`{`));
 
-		if (this.#logMissingShares)
+		if (this.#options.logMissingShares)
 			buf.push(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
 
 		buf.push(Template.indent(Template.indent(`return null;`)));
 		buf.push(Template.indent(`}`));
 		buf.push("}");
 
-		if (this.#registerFunction)
+		if (this.#options.globalModulesRegister)
 		{
-			buf.push(`${RuntimeGlobals.global}.${this.#registerFunction} = (moduleId, module) =>
+			buf.push(`${RuntimeGlobals.global}.${this.#options.globalModulesRegister} = (moduleId, module) =>
 			{
 				// Inject module into module cache
 				if (Object.hasOwn(${RuntimeGlobals.moduleCache}, moduleId))
@@ -171,7 +166,29 @@ export class SharedRequirePluginModule
 			}`);
 		}
 
-		if (this.#compatibility)
+		// Currently this simply proxies shares scoped by module to the original package name
+		// TODO: register scoped packges into their own scope and query from their scope.
+		if (this.#options.modules)
+		{
+			const scopeConfig = [];
+			for (const moduleName in this.#options.modules)
+			{
+				const mod = this.#options.modules[moduleName];
+
+				for (const packageName in mod)
+					scopeConfig.push(`scope["${moduleName}:${packageName}"] = {"0.0.0": {from: "${moduleName}", eager: true, get: () => (() => ${this.#options.globalModulesRequire}("${packageName}"))}};`);
+			}
+
+			buf.push("// Adding modules to the shared scope ");
+			buf.push(`const configureModulesInScope = /*#__PURE__*/ init(${runtimeTemplate.basicFunction(
+				"scopeName, scope",
+				scopeConfig
+			)});`);
+
+			buf.push(`configureModulesInScope("global")`);
+		}
+
+		if (this.#options.compatibility)
 		{
 			buf.push("");
 			buf.push("// Shared-Require Backwards Compatiblity");

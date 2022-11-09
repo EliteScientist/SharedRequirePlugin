@@ -64,7 +64,8 @@ export default class SharedRequirePlugin
         {
             const provides  = {};
 
-            for (let packageName in this.options.provides)
+			// Provides
+            for (const packageName in this.options.provides)
             {
                 const specs = this.options.provides[packageName];
 
@@ -75,6 +76,26 @@ export default class SharedRequirePlugin
 
                 provides[packageName]    = specs;
             }
+
+			// Modules
+			// TODO: register scoped packges into their own scope and query from their scope.
+			for (const moduleName in this.options.modules)
+			{
+				const mod = this.options.modules[moduleName];
+
+				for (const packageName in mod)
+				{
+					const specs = mod[packageName];
+
+					if (!specs.shareKey)
+						specs.shareKey  = packageName;
+
+					specs.eager = true;
+
+					provides[packageName]    = specs;
+				}
+
+			}
 
             new ProvideSharedPlugin({
                 provides: provides,
@@ -212,10 +233,11 @@ export default class SharedRequirePlugin
 /**
  * Shared Require Plugin Options
  */
-interface SharedRequirePluginOptions
+export interface SharedRequirePluginOptions
 {
     provides?:{[key:string]: {eager?:boolean, shareKey?:string, version?:string}};
     consumes?:{[key:string]: {eager?:boolean}};
+	modules?: {[key:string]: {[key:string]: {eager?:boolean, shareKey?:string, version?:string}}};
     externalModules?:Array<string>;	// List of external modules that are provided by the provider application
     globalModulesRequire:string;	// Global require method name
 	globalModulesRegister:string;	// Global Method to register modules
