@@ -131,6 +131,8 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
 				};
 			}`);
         }
+        // Currently this simply proxies shares scoped by module to the original package name
+        // TODO: register scoped packges into their own scope and query from their scope.
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_options, "f").modules) {
             const scopeConfig = [];
             for (const moduleName in __classPrivateFieldGet(this, _SharedRequirePluginModule_options, "f").modules) {

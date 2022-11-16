@@ -224,7 +224,11 @@ export default class SharedRequirePlugin
 		
 		const buf = [];
 		
-        buf.push(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
+		buf.push(Template.indent(Template.indent('try')));
+		buf.push(Template.indent(Template.indent('{')));
+        buf.push(Template.indent(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))));
+		buf.push(Template.indent(Template.indent('}')));
+		buf.push(Template.indent(Template.indent('catch (error) { /* SharedRequirePlugin not installed on parent */}')));
         
         return Template.asString(buf);
     }

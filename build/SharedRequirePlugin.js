@@ -64,6 +64,7 @@ class SharedRequirePlugin {
                 provides[packageName] = specs;
             }
             // Modules
+            // TODO: register scoped packges into their own scope and query from their scope.
             for (const moduleName in this.options.modules) {
                 const mod = this.options.modules[moduleName];
                 for (const packageName in mod) {
@@ -161,7 +162,11 @@ class SharedRequirePlugin {
     getSource(request) {
         let req = JSON.stringify(request);
         const buf = [];
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`module.exports = ${webpack_1.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('try')));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('{')));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`module.exports = ${webpack_1.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('}')));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('catch (error) { /* SharedRequirePlugin not installed on parent */}')));
         return webpack_1.Template.asString(buf);
     }
 }
