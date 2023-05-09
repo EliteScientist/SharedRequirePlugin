@@ -1,5 +1,5 @@
 import {Template, RuntimeModule, RuntimeGlobals} from "webpack";
-import {satisfyRuntimeCode} from "webpack/lib/util/semver";
+import {satisfyRuntimeCode, versionLtRuntimeCode} from "webpack/lib/util/semver";
 import type { SharedRequirePluginOptions } from "./SharedRequirePlugin";
 
 export class SharedRequirePluginModule
@@ -23,7 +23,8 @@ export class SharedRequirePluginModule
 		const {runtimeTemplate}	= compilation;
 		
 		const buf:string[] = [
-			satisfyRuntimeCode(runtimeTemplate)
+			satisfyRuntimeCode(runtimeTemplate),
+			versionLtRuntimeCode(runtimeTemplate)
 		];
 
 		buf.push("// Shared-Require Global Module Provider Function");
@@ -119,7 +120,7 @@ export class SharedRequirePluginModule
 		if (this.#options.logMissingShares)
 			buf.push(Template.indent(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`))));
 
-		buf.push(Template.indent(Template.indent(Template.indent(`return null;`))));
+		buf.push(Template.indent(Template.indent(Template.indent(`return undefined;`))));
 		buf.push(Template.indent(Template.indent(`}`)));
 		buf.push(Template.indent(Template.indent(`return moduleGen()`)));
 		buf.push(Template.indent(`}`));
@@ -129,7 +130,7 @@ export class SharedRequirePluginModule
 		if (this.#options.logMissingShares)
 			buf.push(Template.indent(Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
 
-		buf.push(Template.indent(Template.indent(`return null;`)));
+		buf.push(Template.indent(Template.indent(`return undefined;`)));
 		buf.push(Template.indent(`}`));
 		buf.push("}");
 
@@ -206,7 +207,7 @@ export class SharedRequirePluginModule
 					Template.indent(Template.indent(Template.indent(Template.indent("if (isNaN(prop))")))),
 					Template.indent(Template.indent(Template.indent(Template.indent(Template.indent("return target[prop]?.exports;"))))),
 					Template.indent(Template.indent(Template.indent(Template.indent("")))),
-					Template.indent(Template.indent(Template.indent(Template.indent("return null;")))),
+					Template.indent(Template.indent(Template.indent(Template.indent("return undefined;")))),
 					Template.indent(Template.indent(Template.indent("},"))),
 					Template.indent(Template.indent(Template.indent("has: function (target, prop)"))),
 					Template.indent(Template.indent(Template.indent("{"))),

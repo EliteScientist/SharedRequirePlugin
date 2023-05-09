@@ -28,7 +28,8 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         const { compilation } = this;
         const { runtimeTemplate } = compilation;
         const buf = [
-            (0, semver_1.satisfyRuntimeCode)(runtimeTemplate)
+            (0, semver_1.satisfyRuntimeCode)(runtimeTemplate),
+            (0, semver_1.versionLtRuntimeCode)(runtimeTemplate)
         ];
         buf.push("// Shared-Require Global Module Provider Function");
         buf.push("// Initialize Sharing Scope");
@@ -89,7 +90,7 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`{`)));
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_options, "f").logMissingShares)
             buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`))));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`return null;`))));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`return undefined;`))));
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`}`)));
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return moduleGen()`)));
         buf.push(webpack_1.Template.indent(`}`));
@@ -97,7 +98,7 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         buf.push(webpack_1.Template.indent(`{`));
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_options, "f").logMissingShares)
             buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`console.warn(\`Request for shared module: \${moduleId} - Not available.\`);`)));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return null;`)));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent(`return undefined;`)));
         buf.push(webpack_1.Template.indent(`}`));
         buf.push("}");
         if (__classPrivateFieldGet(this, _SharedRequirePluginModule_options, "f").globalModulesRegister) {
@@ -161,7 +162,7 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("if (isNaN(prop))")))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return target[prop]?.exports;"))))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("")))),
-                webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return null;")))),
+                webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("return undefined;")))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("},"))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("has: function (target, prop)"))),
                 webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent("{"))),

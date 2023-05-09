@@ -166,7 +166,7 @@ class SharedRequirePlugin {
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent('{')));
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent(webpack_1.Template.indent(`module.exports = ${webpack_1.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))));
         buf.push(webpack_1.Template.indent(webpack_1.Template.indent('}')));
-        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('catch (error) { /* SharedRequirePlugin not installed on parent */}')));
+        buf.push(webpack_1.Template.indent(webpack_1.Template.indent('catch (error) { module.exports = undefined; /* SharedRequirePlugin not installed on parent */}')));
         return webpack_1.Template.asString(buf);
     }
 }
