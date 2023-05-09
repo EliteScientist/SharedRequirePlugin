@@ -28,8 +28,10 @@ class SharedRequirePluginModule extends webpack_1.RuntimeModule {
         const { compilation } = this;
         const { runtimeTemplate } = compilation;
         const buf = [
-            (0, semver_1.satisfyRuntimeCode)(runtimeTemplate),
-            (0, semver_1.versionLtRuntimeCode)(runtimeTemplate)
+            (0, semver_1.parseVersionRuntimeCode)(runtimeTemplate),
+            (0, semver_1.versionLtRuntimeCode)(runtimeTemplate),
+            (0, semver_1.rangeToStringRuntimeCode)(runtimeTemplate),
+            (0, semver_1.satisfyRuntimeCode)(runtimeTemplate)
         ];
         buf.push("// Shared-Require Global Module Provider Function");
         buf.push("// Initialize Sharing Scope");

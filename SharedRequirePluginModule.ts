@@ -1,5 +1,11 @@
 import {Template, RuntimeModule, RuntimeGlobals} from "webpack";
-import {satisfyRuntimeCode, versionLtRuntimeCode} from "webpack/lib/util/semver";
+import {
+	parseVersionRuntimeCode,
+	versionLtRuntimeCode,
+	rangeToStringRuntimeCode,
+	satisfyRuntimeCode
+} from "webpack/lib/util/semver";
+
 import type { SharedRequirePluginOptions } from "./SharedRequirePlugin";
 
 export class SharedRequirePluginModule
@@ -23,8 +29,10 @@ export class SharedRequirePluginModule
 		const {runtimeTemplate}	= compilation;
 		
 		const buf:string[] = [
-			satisfyRuntimeCode(runtimeTemplate),
-			versionLtRuntimeCode(runtimeTemplate)
+			parseVersionRuntimeCode(runtimeTemplate),
+			versionLtRuntimeCode(runtimeTemplate),
+			rangeToStringRuntimeCode(runtimeTemplate),
+			satisfyRuntimeCode(runtimeTemplate)
 		];
 
 		buf.push("// Shared-Require Global Module Provider Function");
