@@ -1,6 +1,6 @@
 {
 	"name": "sharedrequireplugin",
-	"version": "3.0.0",
+	"version": "3.0.1",
 	"description": "Webpack 5.x / Rollup Shared Require Plugin",
 	"main": "build/SharedRequirePlugin.js",
 	"author": "Michael Rochelle",
