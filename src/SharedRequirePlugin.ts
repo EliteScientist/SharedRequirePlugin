@@ -1,7 +1,7 @@
 /*
    MIT License
 
-    Copyright (c) 2020 Michael Rochelle <@EliteScientist>
+    Copyright (c) 2023 Michael Rochelle <@EliteScientist>
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
@@ -21,16 +21,16 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
  
- */
+*/
 
 import {SharedRequirePluginModule} from "./SharedRequirePluginModule";
-import {Template, RuntimeGlobals, Module, Compilation} from "webpack";
+import {Template, RuntimeGlobals, type Module, type Compilation} from "webpack";
 import RawModule from "webpack/lib/RawModule";
 import ProvideSharedPlugin from "webpack/lib/sharing/ProvideSharedPlugin";
 
 const pluginName	= "SharedRequirePlugin";
 
-export default class SharedRequirePlugin
+export class SharedRequirePlugin
 {
     options:SharedRequirePluginOptions;     // Plugin Configuration
 
@@ -249,5 +249,3 @@ export interface SharedRequirePluginOptions
     compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
     logMissingShares:boolean;       // Log Missing Share warnings to console.
 }
-
-module.exports = SharedRequirePlugin;

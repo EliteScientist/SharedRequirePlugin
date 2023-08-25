@@ -5,49 +5,26 @@
 		"allowJs":	true,                         /* Allow javascript files to be compiled. */
 		"checkJs":	true,                         /* Report errors in .js files. */
 		"noEmit":	false,                        /* Do not emit outputs. */
-		"target": 	"es6",
-		"outDir":	"build",
-		"module":	"commonjs",
-		"paths": 
-		{
-			"*": 
-			[
-				"node_modules/*",
-				"src/types/*"
-			]
-		},
-		"baseUrl": ".",
-
-		"esModuleInterop":				true,      /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
+		"target": 	"ESNext",
+		"outDir":	"./dist/",
+		"module":	"ESNext",
+		"baseUrl": "src",
+		"declaration": true,
+		"declarationDir": "./dts/",
+		"esModuleInterop":				true,     /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
 		"allowSyntheticDefaultImports":	true,     /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
-		"moduleResolution":				"node",	  /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+		"moduleResolution":				"Node",	  /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
 		"noImplicitAny": false,                   /* Raise error on expressions and declarations with an implied 'any' type. */
-		
-		/* Strict Type-Checking Options */
-		//"strict": true,                         /* Enable all strict type-checking options. */
-		// "strictNullChecks": true,              /* Enable strict null checks. */
-		// "strictFunctionTypes": true,           /* Enable strict checking of function types. */
-		// "strictPropertyInitialization": true,  /* Enable strict checking of property initialization in classes. */
-		// "noImplicitThis": true,                /* Raise error on 'this' expressions with an implied 'any' type. */
-		// "alwaysStrict": true,                  /* Parse in strict mode and emit "use strict" for each source file. */
-
-		/* Additional Checks */
-		// "noUnusedLocals": true,                /* Report errors on unused locals. */
-		// "noUnusedParameters": true,            /* Report errors on unused parameters. */
-		// "noImplicitReturns": true,             /* Report error when not all code paths in function return a value. */
-		// "noFallthroughCasesInSwitch": true,    /* Report errors for fallthrough cases in switch statement. */
+		"typeRoots": ["./node_modules/@types"],
+		"paths": {
+			"*": ["*"]
+		}
 	},
-	"files":
-	[
-		"SharedRequirePlugin.ts"
-	],
-	"types": ["node", "webpack"],
+	"types": ["webpack"],
+	"include": ["src"],
 	"exclude": 
 	[
 		"node_modules",
-		"spec",
-		"examples",
-		"dist",
-		"coverage"
+		"build"
 	]
 }
