@@ -52,7 +52,7 @@ export function SharedRequirePlugin (options: SharedRequirePluginOptions = {}) :
 		{
 			if (sharedTypes.includes(id)) 
 			{
-				const importName = path.basename(id);
+				const importName = path.basename(id).replace(/[\W]/,"_");
 
 				return {
 					code: `

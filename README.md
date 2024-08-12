@@ -9,7 +9,7 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 ## Examples
 
 > ### ProjectA - Contains JQuery -
->
+> 
 > webpack.config.js
 
 ```javascript
@@ -34,7 +34,7 @@ export default {
 ```
 
 > ### ProjectB - Uses JQuery -
->
+> 
 > webpack.config.js
 
 ```javascript
@@ -77,11 +77,11 @@ This Webpack plugin enables you to share the code require()'d in one project wit
 ## Examples
 
 > ### ProjectB - Uses JQuery -
->
+> 
 > rollup.config.js
 
 ```javascript
-import { SharedRequirePlugin} from "sharedrequireplugin/rollup";
+import { SharedRequirePlugin } from "sharedrequireplugin/rollup";
 
 export default [
     {
