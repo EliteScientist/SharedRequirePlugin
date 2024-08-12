@@ -42,7 +42,7 @@ function SharedRequirePlugin(options = {}) {
         },
         load(id) {
             if (sharedTypes.includes(id)) {
-                const importName = path.basename(id);
+                const importName = path.basename(id).replace(/\W/, "_");
                 return {
                     code: `
 export const ${importName}SharedModule = globalThis.requireSharedModule("${id}");
