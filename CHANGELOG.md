@@ -2,6 +2,8 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [3.0.2](https://github.com/EliteScientist/SharedRequirePlugin/compare/v3.0.1...v3.0.2) (2024-08-12)
+
 ### [3.0.1](https://github.com/EliteScientist/SharedRequirePlugin/compare/v2.0.11...v3.0.1) (2023-08-25)
 
 ## [2.0.11](https://github.com/EliteScientist/SharedRequirePlugin/compare/v2.0.10...v2.0.11) (2023-05-09)
