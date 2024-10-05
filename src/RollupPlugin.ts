@@ -28,7 +28,14 @@ import { Plugin } from "rollup";
 
 export function SharedRequirePlugin (options: SharedRequirePluginOptions = {}) : Plugin
 {
-	const sharedTypes = options.external ?? [];
+	const sharedTypes = options.external;
+	const sharedPrefixes = options.externalModulePrefixes;
+
+	const isShared = (request) =>
+	{
+		return sharedPrefixes?.some((prefix) => request.startsWith(prefix)) 
+			|| sharedTypes?.includes(request)
+	}
 
 	return {
 		name: 'shared-require', // this name will show up in logs and errors
@@ -36,7 +43,7 @@ export function SharedRequirePlugin (options: SharedRequirePluginOptions = {}) :
 			order: 'pre',
 			async handler(request: string, requester: string | undefined, options)
 			{
-				if (sharedTypes.includes(request)) 
+				if (isShared(request))
 				{
 					return {
 						id: request,
@@ -50,7 +57,7 @@ export function SharedRequirePlugin (options: SharedRequirePluginOptions = {}) :
 
 		load ( id: string ) 
 		{
-			if (sharedTypes.includes(id)) 
+			if (isShared(id)) 
 			{
 				const importName = path.basename(id).replace(/\W/,"_");
 
@@ -72,4 +79,5 @@ export default ${importName}SharedModule.default;
 interface SharedRequirePluginOptions
 {
 	external?: string[];
+	externalModulePrefixes?: string[];	// Assume all modules that begin with this prefix is shared
 }

@@ -46,13 +46,18 @@ var path__namespace = /*#__PURE__*/_interopNamespaceDefault(path);
  
 */
 function SharedRequirePlugin(options = {}) {
-    const sharedTypes = options.external ?? [];
+    const sharedTypes = options.external;
+    const sharedPrefixes = options.externalModulePrefixes;
+    const isShared = (request) => {
+        return sharedPrefixes?.some((prefix) => request.startsWith(prefix))
+            || sharedTypes?.includes(request);
+    };
     return {
         name: 'shared-require',
         resolveId: {
             order: 'pre',
             async handler(request, requester, options) {
-                if (sharedTypes.includes(request)) {
+                if (isShared(request)) {
                     return {
                         id: request,
                         moduleSideEffects: true
@@ -62,7 +67,7 @@ function SharedRequirePlugin(options = {}) {
             }
         },
         load(id) {
-            if (sharedTypes.includes(id)) {
+            if (isShared(id)) {
                 const importName = path__namespace.basename(id).replace(/\W/, "_");
                 return {
                     code: `
