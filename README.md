@@ -101,8 +101,9 @@ export default [
         plugins: [
             nodeResolve(),
             SharedRequirePluginRollup({
-                external: [
-                    "jquery",
+                externalModules: [
+                    /\@polymer\/polymer/g,
+                    "jquery"
                 ]
             }),
             ...
