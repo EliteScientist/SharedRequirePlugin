@@ -1,4 +1,4 @@
-import * as path from 'node:path';
+import path from 'node:path';
 
 /*
    MIT License
@@ -25,41 +25,107 @@ import * as path from 'node:path';
  
 */
 function SharedRequirePlugin(options = {}) {
-    const sharedTypes = options.external;
+    const sharedTypes = options.externalModules ?? options.external;
     const sharedPrefixes = options.externalModulePrefixes;
+    const modulesRequire = options.globalModulesRequire ?? "requireSharedModule";
+    const modulesRegister = options.globalModulesRegister ?? "registerSharedModule";
+    const provides = options.provides
+        ? options.provides.map((pattern) => new RegExp(pattern))
+        : undefined;
+    options.modules;
+    const idToFileMap = new Map();
     const isShared = (request) => {
-        return sharedPrefixes?.some((prefix) => request.startsWith(prefix))
-            || sharedTypes?.includes(request);
+        return (sharedPrefixes?.some((prefix) => request.startsWith(prefix))
+            || sharedTypes?.includes(request)) ?? false;
+    };
+    const toProvide = (request) => {
+        return provides?.some((pattern) => pattern.test(request)) ?? false;
     };
     return {
-        name: 'shared-require',
+        name: 'shared-require', // this name will show up in logs and errors
         resolveId: {
             order: 'pre',
-            async handler(request, requester, options) {
-                if (isShared(request)) {
+            async handler(source, requester, options) {
+                if (isShared(source)) {
                     return {
-                        id: request,
+                        id: source,
                         moduleSideEffects: true
+                    };
+                }
+                // Only provide modules used the in the application and not dependencies of included libraries
+                if (toProvide(source)) {
+                    return {
+                        id: source,
+                        moduleSideEffects: "no-treeshake",
+                        meta: { sharedId: source }
                     };
                 }
                 return null;
             }
         },
-        load(id) {
+        async load(id) {
             if (isShared(id)) {
                 const importName = path.basename(id).replace(/\W/, "_");
-                return {
-                    code: `
-export const ${importName}SharedModule = globalThis.requireSharedModule("${id}");
+                const code = `
+export const ${importName}SharedModule = globalThis.${modulesRequire}("${id}");
 export default ${importName}SharedModule.default;
-					`,
+					`;
+                return {
+                    code,
+                    ast: this.parse(code),
                     moduleSideEffects: "no-treeshake",
                     syntheticNamedExports: `${importName}SharedModule`
                 };
             }
+            if (toProvide(id)) {
+                const resolution = await this.resolve(id);
+                const mod = await this.load(resolution
+                    ? { ...resolution, moduleSideEffects: true, resolveDependencies: true }
+                    : { id, moduleSideEffects: true, resolveDependencies: true });
+                if (resolution)
+                    idToFileMap.set(resolution.id, id);
+                const requestImportVar = id.replace(/\W/g, "_");
+                let code = `export const ${requestImportVar} = globalThis.${modulesRequire}("${id}");`;
+                if (mod.hasDefaultExport)
+                    code += `export default ${requestImportVar}.default`;
+                return {
+                    code,
+                    moduleSideEffects: "no-treeshake",
+                    ast: this.parse(code),
+                    syntheticNamedExports: requestImportVar
+                };
+            }
             return null;
+        },
+        intro(chunk) {
+            if (!provides || provides.length < 1)
+                return "";
+            const results = [];
+            results.push(generateHeader(modulesRegister, modulesRequire));
+            idToFileMap.forEach((id, fileId) => {
+                const mod = this.getModuleInfo(fileId);
+                if (mod)
+                    results.push(`${modulesRegister}("${id}", {${mod.code}});`);
+            });
+            return results.join('\n');
         }
     };
+}
+function generateHeader(registerMethod, requireMethod) {
+    return `
+const componentMap = new Map();
+globalThis.${registerMethod} = (moduleName, moduleInstance) =>
+{
+	componentMap.set(moduleName, moduleInstance);
+};
+
+const existingSharedRequire = ${requireMethod};
+
+globalThis.${requireMethod} = (moduleName) =>
+{
+	return existingSharedRequire?.(moduleName) ?? componentMap.get(moduleName);
+};
+`;
 }
 
 export { SharedRequirePlugin };

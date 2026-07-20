@@ -7,20 +7,20 @@
 		"noEmit":	false,                        /* Do not emit outputs. */
 		"target": 	"ESNext",
 		"outDir":	"./dist/",
-		"module":	"ESNext",
+		"module":	"Preserve",
 		"baseUrl": "src",
 		"declaration": true,
-		"declarationDir": "./dts/",
+		"declarationDir": "./dist/dts/",
 		"esModuleInterop":				true,     /* Enables emit interoperability between CommonJS and ES Modules via creation of namespace objects for all imports. Implies 'allowSyntheticDefaultImports'. */
 		"allowSyntheticDefaultImports":	true,     /* Allow default imports from modules with no default export. This does not affect code emit, just typechecking. */
-		"moduleResolution":				"Node",	  /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
+		"moduleResolution":			"bundler",	  /* Specify module resolution strategy: 'node' (Node.js) or 'classic' (TypeScript pre-1.6). */
 		"noImplicitAny": false,                   /* Raise error on expressions and declarations with an implied 'any' type. */
 		"typeRoots": ["./node_modules/@types"],
+		"types": ["webpack", "node"],
 		"paths": {
 			"*": ["*"]
 		}
 	},
-	"types": ["webpack"],
 	"include": ["src"],
 	"exclude": 
 	[
