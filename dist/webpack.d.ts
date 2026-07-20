@@ -41,7 +41,7 @@ interface SharedRequirePluginOptions {
             };
         };
     };
-    externalModules?: Array<string>;
+    externalModules?: (string | RegExp)[];
     globalModulesRequire: string;
     globalModulesRegister: string;
     externalModulePrefixes: string[];

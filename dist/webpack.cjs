@@ -317,18 +317,17 @@ class SharedRequirePlugin {
         const moduleId = compilation.chunkGraph.getModuleId(mod);
         if (moduleId === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
             return;
-        if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
+        if (request.startsWith(".") || request.startsWith("/")) // Relative Paths
             return;
         if (request.charAt(1) === ":") // Windows Drives
             return;
-        if (request.indexOf("!") > -1) // Loaders
+        if (request.includes("!")) // Loaders
             return;
         compilation.chunkGraph.setModuleId(mod, request);
     }
     resolveModule(data, callback) {
         if ((this.options.consumes && data.request in this.options.consumes) ||
-            (this.options.externalModulePrefixes
-                && this.options.externalModulePrefixes.some((prefix) => String(data.request).startsWith(prefix)))) {
+            (this.options.externalModulePrefixes?.some((prefix) => String(data.request).startsWith(prefix)))) {
             const runtimeRequirements = new Set([
                 webpack.RuntimeGlobals.module,
                 webpack.RuntimeGlobals.require,
@@ -355,11 +354,7 @@ class SharedRequirePlugin {
     getSource(request) {
         let req = JSON.stringify(request);
         const buf = [];
-        buf.push(webpack.Template.indent(webpack.Template.indent('try')));
-        buf.push(webpack.Template.indent(webpack.Template.indent('{')));
-        buf.push(webpack.Template.indent(webpack.Template.indent(webpack.Template.indent(`module.exports = ${webpack.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))));
-        buf.push(webpack.Template.indent(webpack.Template.indent('}')));
-        buf.push(webpack.Template.indent(webpack.Template.indent('catch (error) { module.exports = undefined; /* SharedRequirePlugin not installed on parent */}')));
+        buf.push(webpack.Template.indent(webpack.Template.indent('try')), webpack.Template.indent(webpack.Template.indent('{')), webpack.Template.indent(webpack.Template.indent(webpack.Template.indent(`module.exports = ${webpack.RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))), webpack.Template.indent(webpack.Template.indent('}')), webpack.Template.indent(webpack.Template.indent('catch (error) { module.exports = undefined; /* SharedRequirePlugin not installed on parent */}')));
         return webpack.Template.asString(buf);
     }
 }
