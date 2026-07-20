@@ -166,13 +166,13 @@ export class SharedRequirePlugin
 		if (moduleId === 0) // Do not change the root (We may be able to simply change all modules that do not have an id of 0)
 			return;
 		
-		if (request.charAt(0) === "." || request.charAt(0) === "/") // Relative Paths
+		if (request.startsWith(".") || request.startsWith("/")) // Relative Paths
 			return;
 		
 		if (request.charAt(1) === ":") // Windows Drives
 			return;
 		
-		if (request.indexOf("!") > -1) // Loaders
+		if (request.includes("!")) // Loaders
 			return;
 
         compilation.chunkGraph.setModuleId(mod, request);
@@ -182,8 +182,7 @@ export class SharedRequirePlugin
     {
         if (
 			(this.options.consumes && data.request in this.options.consumes) ||
-			(this.options.externalModulePrefixes
-				&& this.options.externalModulePrefixes.some((prefix) => String(data.request).startsWith(prefix)))
+			(this.options.externalModulePrefixes?.some((prefix) => String(data.request).startsWith(prefix)))
 		)
         {
             const runtimeRequirements    = new Set([
@@ -222,13 +221,15 @@ export class SharedRequirePlugin
     {
         let req	= JSON.stringify(request);
 		
-		const buf = [];
+		const buf: string[] = [];
 		
-		buf.push(Template.indent(Template.indent('try')));
-		buf.push(Template.indent(Template.indent('{')));
-        buf.push(Template.indent(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))));
-		buf.push(Template.indent(Template.indent('}')));
-		buf.push(Template.indent(Template.indent('catch (error) { module.exports = undefined; /* SharedRequirePlugin not installed on parent */}')));
+		buf.push(
+            Template.indent(Template.indent('try')),
+            Template.indent(Template.indent('{')),
+            Template.indent(Template.indent(Template.indent(`module.exports = ${RuntimeGlobals.global}.${this.options.globalModulesRequire}(${req});`))),
+            Template.indent(Template.indent('}')),
+            Template.indent(Template.indent('catch (error) { module.exports = undefined; /* SharedRequirePlugin not installed on parent */}'))
+        );
         
         return Template.asString(buf);
     }
@@ -242,10 +243,10 @@ export interface SharedRequirePluginOptions
     provides?:{[key:string]: {eager?:boolean, shareKey?:string, version?:string}};
     consumes?:{[key:string]: {eager?:boolean}};
 	modules?: {[key:string]: {[key:string]: {eager?:boolean, shareKey?:string, version?:string}}};
-    externalModules?:Array<string>;	// List of external modules that are provided by the provider application
-    globalModulesRequire:string;	// Global require method name
-	globalModulesRegister:string;	// Global Method to register modules
-	externalModulePrefixes:string[];// Assume all modules with this prefix are shared
-    compatibility:boolean;          // True to enable compatibility other projects built with older mechanism
-    logMissingShares:boolean;       // Log Missing Share warnings to console.
+    externalModules?:(string | RegExp)[];	// List of external modules that are provided by the provider application
+    globalModulesRequire:string;	        // Global require method name
+	globalModulesRegister:string;	        // Global Method to register modules
+	externalModulePrefixes:string[];        // Assume all modules with this prefix are shared
+    compatibility:boolean;                  // True to enable compatibility other projects built with older mechanism
+    logMissingShares:boolean;               // Log Missing Share warnings to console.
 }

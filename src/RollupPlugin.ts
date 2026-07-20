@@ -170,10 +170,10 @@ export default ${importName}SharedModule.default;
 
 interface SharedRequirePluginOptions
 {
-	external?: string[];				// Kept for compatibility
-	externalModules?: string[];			// Used to create consistent api between webpack
-	externalModulePrefixes?: string[];	// Assume all modules that begin with this prefix is shared
-	provides?: string[]; 				// Packages provided by this project.
+	external?: string[];					// Kept for compatibility
+	externalModules?: (string | RegExp)[];	// Used to create consistent api between webpack
+	externalModulePrefixes?: string[];		// Assume all modules that begin with this prefix is shared
+	provides?: string[]; 					// Packages provided by this project.
 	modules?: Record<string, string[]>;
 
 	globalModulesRequire?: string;
