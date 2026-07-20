@@ -25,7 +25,11 @@ import path from 'node:path';
  
 */
 function SharedRequirePlugin(options = {}) {
-    const sharedTypes = options.externalModules ?? options.external;
+    const sharedTypes = (options.externalModules ?? options.external)?.map((sharedItem) => {
+        if (typeof sharedItem === "string")
+            return new RegExp(`^${sharedItem}$`);
+        return sharedItem;
+    });
     const sharedPrefixes = options.externalModulePrefixes;
     const modulesRequire = options.globalModulesRequire ?? "requireSharedModule";
     const modulesRegister = options.globalModulesRegister ?? "registerSharedModule";
@@ -35,8 +39,9 @@ function SharedRequirePlugin(options = {}) {
     options.modules;
     const idToFileMap = new Map();
     const isShared = (request) => {
-        return (sharedPrefixes?.some((prefix) => request.startsWith(prefix))
-            || sharedTypes?.includes(request)) ?? false;
+        if (sharedPrefixes?.some((prefix) => request.startsWith(prefix)))
+            return true;
+        return sharedTypes?.some((moduleName) => moduleName.test(request)) ?? false;
     };
     const toProvide = (request) => {
         return provides?.some((pattern) => pattern.test(request)) ?? false;
